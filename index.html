@@ -421,10 +421,11 @@ function buildWhatsAppText(dateStr){
   var header = 'Work log on '+fmtDateDDMMYYYY(dateStr);
   if(!entries.length) return header+'\n(No entries logged for this day.)';
   var lines = entries.map(function(w){
-    var text = (w.particulars||'').trim();
-    if(!text) text = (w.category||'Work')+' — '+(w.projectName||'project');
-    if(!/[.!?]$/.test(text)) text += '.';
-    return text;
+    var company = (w.projectName||'Unknown project').trim();
+    var task = (w.particulars||'').trim();
+    if(!task) task = w.category || 'Work';
+    if(!/[.!?]$/.test(task)) task += '.';
+    return company+' — '+task;
   });
   return header+'\n'+lines.join('\n');
 }

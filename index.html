@@ -1034,10 +1034,12 @@ function followupsCardHTML(list){
     var d = daysSince(p.lastCommunication);
     var dateDue = isFollowUpDue(p);
     var badge = dateDue ? (p.followUpOn===today ? 'Today' : 'Overdue') : (d+'d');
-    return '<div class="followup">'+
+    var remark = (p.remarks||'').trim();
+    return '<div class="followup row-clickable" data-action="edit-project" data-id="'+p.id+'" data-tip="Click for full details">'+
       '<span class="pill"><span class="dot" style="background:var(--critical)"></span>'+esc(badge)+'</span>'+
       '<div class="fu-main"><div class="fu-name">'+esc(p.name)+'</div>'+
         '<div class="fu-sub">'+(p.nextAction? esc(p.nextAction) : 'No next action noted')+' · '+(p.actionOwner==='client'?'Client owes reply':'You owe next move')+(dateDue? ' · Follow-up set for '+fmtDate(p.followUpOn) : '')+'</div>'+
+        (remark? '<div class="fu-sub" style="margin-top:2px; font-style:italic;">'+esc(remark)+'</div>' : '')+
       '</div>'+
       '<button class="btn btn-sm" data-action="touch-comm" data-id="'+p.id+'">Mark contacted</button>'+
       '<button class="icon-btn" data-action="edit-project" data-id="'+p.id+'" data-tip="Edit project">'+iconEdit()+'</button>'+
@@ -1092,10 +1094,17 @@ function renderProjects(){
     (filtered.length ? projectsTableHTML(filtered) : '<div class="card"><div class="empty">'+iconFolder()+'<h3>No matches</h3><p>Try a different search term or status filter.</p></div></div>');
 }
 function projectsTableHTML(list){
+  var today = todayStr();
   var rows = list.map(function(p){
     var st = overallStatus(p);
     var d = daysSince(p.lastCommunication);
     var stale = st!=='Completed' && d!=null && d>(state.settings.staleDays||5);
+    var followUpLine = '';
+    if(p.followUpOn){
+      var due = isFollowUpDue(p);
+      var label = due ? ('Follow up '+(p.followUpOn===today?'today':'overdue')) : ('Follow up '+fmtDate(p.followUpOn));
+      followUpLine = '<div style="font-size:11px; margin-top:3px; '+(due?'color:var(--critical); font-weight:700;':'color:var(--text-muted);')+'">'+label+'</div>';
+    }
     return '<tr class="row-clickable" data-action="edit-project" data-id="'+p.id+'">'+
       '<td><b>'+esc(p.name)+'</b></td>'+
       '<td><span class="pill"><span class="dot" style="background:'+statusDot(st)+'"></span>'+esc(st)+'</span></td>'+
@@ -1105,14 +1114,11 @@ function projectsTableHTML(list){
         var tip = dm.label+': '+esc(p[dm.key]||dm.def)+(dmOwner?' · Owner: '+esc(dmOwner):'')+(dmRemarks?' · '+esc(dmRemarks):'');
         return '<span class="dim-chip" data-tip="'+tip+'"><span class="dot" style="background:'+statusDot(p[dm.key]||dm.def)+'"></span>'+dm.short+(dmOwner?' · <b>'+esc(dmOwner)+'</b>':'')+'</span>';
       }).join('')+'</div></td>'+
-      '<td>'+ (d==null ? '<span class="muted">—</span>' : '<span class="'+(stale?'' :'sec')+'" style="'+(stale?'color:var(--critical); font-weight:700;':'')+'">'+d+'d ago</span>') +'</td>'+
+      '<td>'+ (d==null ? '<span class="muted">—</span>' : '<span class="'+(stale?'' :'sec')+'" style="'+(stale?'color:var(--critical); font-weight:700;':'')+'">'+d+'d ago</span>') + followUpLine +'</td>'+
       '<td class="trunc" data-tip="'+esc(p.nextAction||'')+'">'+(p.nextAction? esc(p.nextAction): '<span class="muted">—</span>')+'</td>'+
       '<td><span class="pill"><span class="dot" style="background:'+(p.actionOwner==='client'?'var(--owner-client)':'var(--owner-us)')+'"></span>'+(p.actionOwner==='client'?'Client':'Us')+'</span></td>'+
       '<td class="num">'+fmtHrs(projectMinutes(p.id))+'</td>'+
-      '<td onclick="event.stopPropagation()">'+
-        '<button class="icon-btn" data-action="open-documents" data-id="'+p.id+'" data-tip="Documents">'+iconFile()+'</button>'+
-        '<button class="icon-btn" data-action="delete-project" data-id="'+p.id+'" data-tip="Delete">'+iconTrash()+'</button>'+
-      '</td>'+
+      '<td><button class="icon-btn" data-action="open-documents" data-id="'+p.id+'" data-tip="Documents">'+iconFile()+'</button></td>'+
     '</tr>';
   }).join('');
   return '<div class="table-wrap"><table><thead><tr>'+
@@ -1352,10 +1358,9 @@ function worklogTableHTML(list){
       '<td class="trunc" data-tip="'+esc(w.particulars||'')+'">'+esc(w.particulars||'—')+'</td>'+
       '<td class="sec num">'+(w.startTime&&w.endTime? esc(w.startTime)+'–'+esc(w.endTime) : '—')+'</td>'+
       '<td class="num"><b>'+fmtHrs(w.durationMinutes)+'</b></td>'+
-      '<td onclick="event.stopPropagation()"><button class="icon-btn" data-action="delete-log" data-id="'+w.id+'" data-tip="Delete">'+iconTrash()+'</button></td>'+
     '</tr>';
   }).join('');
-  return '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Project</th><th>Category</th><th>Particulars</th><th>Time</th><th>Hours</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  return '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Project</th><th>Category</th><th>Particulars</th><th>Time</th><th>Hours</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 /* ===================== analytics view ===================== */
@@ -1488,10 +1493,11 @@ function openProjectModal(id){
       '</div></div>'+
       '<div class="field-row">'+
         '<div class="field"><label>Last communication</label><input type="date" id="pf-lastcomm" value="'+esc(v.lastCommunication||'')+'"></div>'+
-        '<div class="field"><label>Next move is on</label><select id="pf-owner"><option value="us"'+(v.actionOwner!=='client'?' selected':'')+'>Us</option><option value="client"'+(v.actionOwner==='client'?' selected':'')+'>Client</option></select></div>'+
+        '<div class="field"><label>Follow up on</label><input type="date" id="pf-followupon" value="'+esc(v.followUpOn||'')+'"></div>'+
       '</div>'+
+      '<div class="hint" style="display:block; margin:-8px 0 14px;">Follow up on is optional — set a specific date to be reminded, separate from the general '+(state.settings.staleDays||5)+'-day staleness window.</div>'+
+      '<div class="field"><label>Next move is on</label><select id="pf-owner"><option value="us"'+(v.actionOwner!=='client'?' selected':'')+'>Us</option><option value="client"'+(v.actionOwner==='client'?' selected':'')+'>Client</option></select></div>'+
       '<div class="field"><label>Next action</label><input type="text" id="pf-nextaction" value="'+esc(v.nextAction||'')+'" placeholder="e.g. Send revised financial model"></div>'+
-      '<div class="field"><label>Follow up on</label><input type="date" id="pf-followupon" value="'+esc(v.followUpOn||'')+'"><span class="hint" style="display:block; margin-top:4px;">Optional — set a specific date to be reminded, separate from the general '+(state.settings.staleDays||5)+'-day staleness window.</span></div>'+
       '<div class="field"><label>Remarks</label><textarea id="pf-remarks" placeholder="Context, blockers, anything worth remembering">'+esc(v.remarks||'')+'</textarea></div>'+
       (p? '<div class="field"><label class="hint">'+logCount+' worklog '+(logCount===1?'entry':'entries')+' · '+fmtHrs(hrs)+' logged</label></div>' : '')+
       '<div class="modal-actions">'+

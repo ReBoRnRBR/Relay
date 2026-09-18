@@ -1,0 +1,1453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Relay</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+html,body{margin:0; padding:0;}
+:root{
+  --bg:#f9f9f7; --surface:#fcfcfb; --surface-raised:#ffffff;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
+  --border:rgba(11,11,11,0.10); --border-strong:rgba(11,11,11,0.18);
+  --accent:#2a78d6; --accent-ink:#ffffff;
+  --gridline:#e1e0d9; --baseline:#c3c2b7;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --cat-companyprofile:#008300; --cat-technical:#2a78d6; --cat-financial:#eb6834; --cat-marketing:#1baf7a; --cat-sitevisit:#eda100; --cat-other:#e87ba4;
+  --owner-us:#2a78d6; --owner-client:#4a3aa7;
+  --radius-sm:6px; --radius-md:10px; --radius-lg:16px;
+  --shadow-card:0 1px 2px rgba(11,11,11,.06),0 1px 1px rgba(11,11,11,.04);
+  --shadow-modal:0 20px 60px rgba(11,11,11,.25);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d0d0d; --surface:#1a1a19; --surface-raised:#221f1e;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#928f88;
+    --border:rgba(255,255,255,.10); --border-strong:rgba(255,255,255,.18);
+    --accent:#3987e5; --accent-ink:#ffffff;
+    --gridline:#2c2c2a; --baseline:#383835;
+    --cat-companyprofile:#008300; --cat-technical:#3987e5; --cat-financial:#d95926; --cat-marketing:#199e70; --cat-sitevisit:#c98500; --cat-other:#d55181;
+    --owner-us:#3987e5; --owner-client:#9085e9;
+    --shadow-card:0 1px 2px rgba(0,0,0,.4),0 1px 1px rgba(0,0,0,.3);
+    --shadow-modal:0 20px 60px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d0d0d; --surface:#1a1a19; --surface-raised:#221f1e;
+  --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#928f88;
+  --border:rgba(255,255,255,.10); --border-strong:rgba(255,255,255,.18);
+  --accent:#3987e5; --accent-ink:#ffffff;
+  --gridline:#2c2c2a; --baseline:#383835;
+  --cat-companyprofile:#008300; --cat-technical:#3987e5; --cat-financial:#d95926; --cat-marketing:#199e70; --cat-sitevisit:#c98500; --cat-other:#d55181;
+  --owner-us:#3987e5; --owner-client:#9085e9;
+  --shadow-card:0 1px 2px rgba(0,0,0,.4),0 1px 1px rgba(0,0,0,.3);
+  --shadow-modal:0 20px 60px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--text-primary);
+  font-family:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;
+  font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{margin:0; font-weight:700; text-wrap:balance;}
+p{margin:0;}
+button,input,select,textarea{font:inherit; color:inherit;}
+button{cursor:pointer;}
+a{color:var(--accent);}
+::selection{background:color-mix(in srgb, var(--accent) 30%, transparent);}
+
+/* ---------- App shell ---------- */
+.app{display:flex; height:100%; min-height:100%;}
+.sidebar{
+  width:232px; flex:0 0 auto; background:var(--surface); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; padding:20px 14px; gap:4px;
+}
+.brand{display:flex; align-items:center; gap:10px; padding:6px 10px 20px;}
+.brand-mark{width:28px; height:28px; border-radius:8px; background:var(--accent); flex:0 0 auto; position:relative;}
+.brand-mark::after{content:""; position:absolute; inset:7px; border-radius:3px; background:var(--accent-ink); opacity:.9;}
+.brand-name{font-size:17px; font-weight:800; letter-spacing:-0.01em;}
+.navitem{
+  display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:var(--radius-sm);
+  color:var(--text-secondary); font-weight:600; font-size:13.5px; background:none; border:none; text-align:left; width:100%;
+}
+.navitem svg{width:17px; height:17px; flex:0 0 auto;}
+.navitem:hover{background:var(--border); color:var(--text-primary);}
+.navitem.active{background:color-mix(in srgb, var(--accent) 14%, var(--surface)); color:var(--accent);}
+.nav-badge{margin-left:auto; background:var(--critical); color:#fff; font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px; min-width:16px; text-align:center;}
+.sidebar-foot{margin-top:auto; display:flex; flex-direction:column; gap:4px; padding-top:10px; border-top:1px solid var(--border);}
+
+.main{flex:1 1 auto; min-width:0; height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+.topbar{
+  position:sticky; top:0; z-index:5; background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(8px);
+  display:flex; align-items:center; gap:12px; padding:16px 24px; border-bottom:1px solid var(--border);
+}
+.topbar h1{font-size:19px;}
+.topbar .spacer{flex:1;}
+.view{padding:22px 24px 48px; max-width:1180px;}
+.view[hidden]{display:none;}
+
+/* ---------- Buttons ---------- */
+.btn{
+  display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:var(--radius-sm);
+  border:1px solid var(--border-strong); background:var(--surface-raised); color:var(--text-primary);
+  font-weight:600; font-size:13px; white-space:nowrap;
+}
+.btn:hover{border-color:var(--text-muted);}
+.btn:focus-visible, .navitem:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible{
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+.btn-primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
+.btn-primary:hover{filter:brightness(1.07);}
+.btn-danger{color:var(--critical); border-color:var(--critical);}
+.btn-danger:hover{background:color-mix(in srgb, var(--critical) 10%, transparent);}
+.btn-ghost{border-color:transparent; background:none;}
+.btn-ghost:hover{background:var(--border);}
+.btn-sm{padding:5px 10px; font-size:12px;}
+.btn svg{width:14px; height:14px;}
+.icon-btn{display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:var(--radius-sm); border:1px solid transparent; background:none;}
+.icon-btn:hover{background:var(--border);}
+.icon-btn svg{width:16px; height:16px;}
+
+/* ---------- Cards / layout ---------- */
+.card{background:var(--surface-raised); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-card); min-width:0;}
+.card-pad{padding:18px 20px;}
+.grid-stats{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px;}
+.stat-tile{padding:16px 18px;}
+.stat-label{font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
+.stat-value{font-size:28px; font-weight:800; margin-top:6px; letter-spacing:-0.02em;}
+.stat-sub{font-size:12px; color:var(--text-secondary); margin-top:4px;}
+.section-head{display:flex; align-items:baseline; gap:10px; margin:28px 0 12px;}
+.section-head:first-child{margin-top:0;}
+.section-head h2{font-size:15px;}
+.section-head .count{color:var(--text-muted); font-size:12px; font-weight:600;}
+.section-head .spacer{flex:1;}
+.two-col{display:grid; grid-template-columns:1.3fr 1fr; gap:16px; align-items:start;}
+.two-col > div{min-width:0;}
+
+/* ---------- Pills / badges ---------- */
+.pill{display:inline-flex; align-items:center; gap:6px; padding:3px 10px 3px 8px; border-radius:999px; font-size:12px; font-weight:600; background:var(--surface); border:1px solid var(--border); color:var(--text-secondary); white-space:nowrap;}
+.pill .dot{width:7px; height:7px; border-radius:50%; flex:0 0 auto;}
+.dim-row{display:flex; flex-wrap:wrap; gap:6px;}
+.dim-chip{display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--text-muted); padding:2px 8px 2px 6px; border-radius:999px; background:var(--surface); border:1px solid var(--border);}
+.dim-chip .dot{width:6px; height:6px; border-radius:50%;}
+.dim-chip b{color:var(--text-secondary); font-weight:600;}
+
+/* ---------- Tables ---------- */
+.table-wrap{overflow-x:auto; border-radius:var(--radius-lg); border:1px solid var(--border); background:var(--surface-raised);}
+table{width:100%; border-collapse:collapse; min-width:720px;}
+th{text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); padding:10px 14px; border-bottom:1px solid var(--border); white-space:nowrap;}
+td{padding:12px 14px; border-bottom:1px solid var(--border); vertical-align:middle; font-size:13px;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:color-mix(in srgb, var(--accent) 5%, transparent);}
+.num{font-variant-numeric:tabular-nums; text-align:right;}
+.row-clickable{cursor:pointer;}
+.trunc{max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.muted{color:var(--text-muted);}
+.sec{color:var(--text-secondary);}
+
+/* ---------- Forms ---------- */
+.field{display:flex; flex-direction:column; gap:6px; margin-bottom:14px;}
+.field label{font-size:12px; font-weight:700; color:var(--text-secondary);}
+.field .hint{font-size:11px; color:var(--text-muted); font-weight:500;}
+input[type=text], input[type=date], input[type=time], input[type=number], input[type=search], select, textarea{
+  padding:9px 11px; border-radius:var(--radius-sm); border:1px solid var(--border-strong); background:var(--surface); color:var(--text-primary); width:100%;
+}
+textarea{resize:vertical; min-height:64px; font-family:inherit;}
+.field-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.radio-row{display:flex; gap:14px; align-items:center;}
+.radio-row label{display:flex; align-items:center; gap:6px; font-weight:600; font-size:12.5px; color:var(--text-secondary);}
+fieldset{border:none; padding:0; margin:0;}
+
+/* ---------- Modal ---------- */
+.modal-backdrop{position:fixed; inset:0; background:rgba(10,10,10,.5); display:flex; align-items:flex-start; justify-content:center; padding:5vh 16px; z-index:50; overflow-y:auto;}
+.modal-backdrop[hidden]{display:none;}
+.modal{background:var(--surface-raised); border-radius:var(--radius-lg); box-shadow:var(--shadow-modal); width:100%; max-width:560px; padding:22px 24px 24px; margin-bottom:5vh;}
+.modal-head{display:flex; align-items:center; gap:10px; margin-bottom:16px;}
+.modal-head h3{font-size:17px;}
+.modal-head .spacer{flex:1;}
+.modal-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:18px; padding-top:16px; border-top:1px solid var(--border);}
+.modal-actions .spacer{flex:1;}
+
+/* ---------- Timer ---------- */
+.timer-card{padding:18px 20px; display:flex; flex-wrap:wrap; align-items:flex-end; gap:14px;}
+.timer-fields{display:flex; flex-wrap:wrap; gap:12px; flex:1 1 420px;}
+.timer-fields .field{margin-bottom:0; min-width:150px; flex:1;}
+.timer-display{display:flex; align-items:center; gap:14px;}
+.timer-clock{font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; min-width:104px;}
+.timer-clock.running{color:var(--accent);}
+.pulse-dot{width:9px; height:9px; border-radius:50%; background:var(--critical); animation:pulse 1.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.25;}}
+
+/* ---------- Follow-up list ---------- */
+.followup{display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; padding:13px 16px; border-bottom:1px solid var(--border); min-width:0;}
+.followup:last-child{border-bottom:none;}
+.followup .fu-main{flex:1 1 160px; min-width:0;}
+.followup .fu-name{font-weight:700; font-size:13.5px;}
+.followup .fu-sub{font-size:12px; color:var(--text-secondary); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+/* ---------- Charts ---------- */
+.chart-card{padding:18px 20px;}
+.chart-title{font-size:13px; font-weight:700; margin-bottom:2px;}
+.chart-caption{font-size:11.5px; color:var(--text-muted); margin-bottom:16px;}
+.hbar-row{display:grid; grid-template-columns:120px 1fr 52px; align-items:center; gap:10px; margin-bottom:10px;}
+.hbar-row:last-child{margin-bottom:0;}
+.hbar-label{font-size:12px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.hbar-track{height:16px; background:var(--gridline); border-radius:4px; position:relative; overflow:hidden;}
+.hbar-fill{height:100%; border-radius:4px 0 0 4px; min-width:3px;}
+.hbar-fill.full-round{border-radius:4px;}
+.hbar-val{font-size:12px; font-variant-numeric:tabular-nums; color:var(--text-secondary); text-align:right;}
+.legend{display:flex; flex-wrap:wrap; gap:14px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border);}
+.legend-item{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary);}
+.legend-item .dot{width:8px; height:8px; border-radius:50%;}
+.vbar-chart{display:flex; align-items:flex-end; gap:5px; height:150px; padding-top:20px;}
+.vbar-col{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:6px; position:relative;}
+.vbar-col .vbar{width:100%; max-width:26px; border-radius:4px 4px 0 0; background:var(--accent); min-height:2px; position:relative;}
+.vbar-col .vbar-label{font-size:10px; color:var(--text-muted); white-space:nowrap;}
+.vbar-col .vbar-val{position:absolute; top:-18px; font-size:10.5px; font-weight:700; color:var(--text-secondary); font-variant-numeric:tabular-nums; opacity:0; transition:opacity .1s;}
+.vbar-col:hover .vbar-val, .vbar-col:focus-within .vbar-val{opacity:1;}
+.vbar-col:hover .vbar, .vbar-col:focus-within .vbar{background:var(--accent); filter:brightness(1.15);}
+[data-tip]{position:relative;}
+[data-tip]:hover::after, [data-tip]:focus-visible::after{
+  content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+  background:var(--text-primary); color:var(--bg); font-size:11px; font-weight:600; padding:5px 8px; border-radius:6px;
+  white-space:nowrap; z-index:20; pointer-events:none; box-shadow:0 4px 14px rgba(0,0,0,.2);
+}
+
+/* ---------- Empty states ---------- */
+.empty{padding:44px 24px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;}
+.empty svg{width:38px; height:38px; color:var(--text-muted); opacity:.7;}
+.empty h3{font-size:14.5px;}
+.empty p{color:var(--text-secondary); font-size:13px; max-width:340px;}
+.empty .btn{margin-top:6px;}
+
+/* ---------- Toast ---------- */
+#toast-wrap{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:100; display:flex; flex-direction:column; gap:8px; align-items:center;}
+.toast{background:var(--text-primary); color:var(--bg); padding:10px 16px; border-radius:var(--radius-sm); font-size:13px; font-weight:600; box-shadow:0 8px 24px rgba(0,0,0,.3); animation:toast-in .15s ease-out; max-width:min(90vw,360px);}
+.toast-error{background:var(--critical); color:#fff;}
+@keyframes toast-in{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+/* ---------- Mobile ---------- */
+.bottomnav{display:none;}
+@media (max-width:760px){
+  .sidebar{display:none;}
+  .app{flex-direction:column;}
+  .main{order:1; padding-bottom:70px; height:auto; flex:1;}
+  .bottomnav{
+    display:flex; order:2; position:fixed; bottom:0; left:0; right:0; z-index:10;
+    background:var(--surface); border-top:1px solid var(--border);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));
+  }
+  .bottomnav .navitem{flex-direction:column; gap:3px; font-size:10.5px; align-items:center; padding:6px 2px; border-radius:8px;}
+  .bottomnav .navitem svg{width:19px; height:19px;}
+  .grid-stats{grid-template-columns:1fr 1fr;}
+  .two-col{grid-template-columns:1fr;}
+  .field-row{grid-template-columns:1fr;}
+  .topbar{padding:14px 16px;}
+  .view{padding:16px 16px 40px;}
+  table{min-width:600px;}
+  .section-head{flex-wrap:wrap;}
+  .section-head input[type=search]{max-width:none !important; flex:1 1 100%;}
+  .section-head > div{overflow-x:auto; max-width:100%; padding-bottom:2px;}
+  .section-head > div .btn{flex:0 0 auto;}
+}
+@media (max-width:420px){
+  .grid-stats{grid-template-columns:1fr 1fr;}
+}
+
+/* ---------- Auth screen ---------- */
+.auth-wrap{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;}
+.auth-card{width:100%; max-width:360px; background:var(--surface-raised); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-card); padding:28px 26px;}
+.auth-card .brand{padding:0 0 20px; justify-content:center;}
+.auth-card h2{font-size:17px; text-align:center; margin-bottom:4px;}
+.auth-card p.sub{text-align:center; color:var(--text-secondary); font-size:12.5px; margin-bottom:20px;}
+.auth-error{background:color-mix(in srgb, var(--critical) 10%, transparent); border:1px solid var(--critical); color:var(--critical); font-size:12.5px; font-weight:600; padding:8px 10px; border-radius:var(--radius-sm); margin-bottom:14px;}
+.auth-toggle{text-align:center; margin-top:16px; font-size:12.5px; color:var(--text-secondary);}
+.auth-toggle button{background:none; border:none; color:var(--accent); font-weight:700; cursor:pointer; font-size:12.5px; padding:0;}
+</style>
+</head>
+<body>
+
+<div id="auth-root" class="auth-wrap" hidden></div>
+
+<div id="app-root" hidden>
+  <div class="app">
+    <nav class="sidebar" id="sidebar"></nav>
+    <main class="main">
+      <div class="topbar">
+        <h1 id="view-title">Dashboard</h1>
+        <div class="spacer"></div>
+        <div id="topbar-actions"></div>
+      </div>
+
+      <section class="view" id="view-dashboard"></section>
+      <section class="view" id="view-projects" hidden></section>
+      <section class="view" id="view-worklog" hidden></section>
+      <section class="view" id="view-analytics" hidden></section>
+    </main>
+  </div>
+  <nav class="bottomnav" id="bottomnav"></nav>
+</div>
+
+<div class="modal-backdrop" id="modal-backdrop" hidden>
+  <div class="modal" id="modal-body" role="dialog" aria-modal="true"></div>
+</div>
+
+<div id="toast-wrap"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ===================== Supabase config =====================
+   Fill these in with your project's values (Supabase dashboard ->
+   Project Settings -> API). The anon key is meant to be public — it's
+   safe to ship in this static file as long as Row Level Security is
+   enabled on every table (the schema.sql provided alongside this file
+   does that), because it can only ever act as the currently signed-in
+   user, never as an admin. */
+var SUPABASE_URL = 'https://thidaxdfztmiavrrakge.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoaWRheGRmenRtaWF2cnJha2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MTY4ODcsImV4cCI6MjEwNTI5Mjg4N30.3yId2-HU8ZOh8FxvGniliEUC2feZgcmxdLRksSr4eWU';
+var sb = (window.supabase && SUPABASE_URL.indexOf('PASTE_') !== 0)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+/* ===================== constants ===================== */
+var STATUS_OPTIONS = ['Not Started','Draft','WIP','Completed'];
+var SITE_VISIT_OPTIONS = ['Not Completed','Scheduled','Completed'];
+var DIMENSIONS = [
+  {key:'companyProfile', label:'Company Profile', short:'Profile', options:STATUS_OPTIONS, def:'Not Started'},
+  {key:'technical', label:'Technical', short:'Tech', options:STATUS_OPTIONS, def:'Not Started'},
+  {key:'financial', label:'Financial', short:'Fin', options:STATUS_OPTIONS, def:'Not Started'},
+  {key:'marketing', label:'Marketing', short:'Mktg', options:STATUS_OPTIONS, def:'Not Started'},
+  {key:'siteVisit', label:'Site Visit', short:'Site', options:SITE_VISIT_OPTIONS, def:'Not Completed'}
+];
+function dimDef(key){ for(var i=0;i<DIMENSIONS.length;i++) if(DIMENSIONS[i].key===key) return DIMENSIONS[i].def; return 'Not Started'; }
+var CATEGORIES = ['Company Profile','Technical','Financial','Marketing','Site Visit','Other'];
+var CATEGORY_VAR = {
+  'Company Profile':'--cat-companyprofile','Technical':'--cat-technical','Financial':'--cat-financial','Marketing':'--cat-marketing',
+  'Site Visit':'--cat-sitevisit','Other':'--cat-other'
+};
+var NAV_ITEMS = [
+  {key:'dashboard', label:'Dashboard', icon:iconHome},
+  {key:'projects', label:'Projects', icon:iconFolder},
+  {key:'worklog', label:'Worklog', icon:iconClock},
+  {key:'analytics', label:'Analytics', icon:iconChart}
+];
+
+/* ===================== state ===================== */
+var state = {
+  view: (location.hash||'').replace('#','') || 'dashboard',
+  projects: [],
+  worklogs: [],
+  settings: {staleDays:5},
+  ready: false,
+  dbAvailable: null, // null=unknown, true/false once resolved (true once signed in and Supabase reachable)
+  projectsLoaded: false,
+  worklogsLoaded: false,
+  search: '',
+  statusFilter: 'all',
+  logFilterProject: 'all',
+  timer: null,     // {projectId, category, particulars, startedAt}
+  timerTick: 0,
+  session: null,      // Supabase auth session, or null if signed out
+  authChecked: false, // true once the initial session check has resolved
+  authMode: 'signin',  // 'signin' | 'signup'
+  authBusy: false,
+  authError: ''
+};
+
+var db = null, downloadsCap = true; // downloads always available in a real browser
+var timerInterval = null;
+var renderQueued = false;
+
+/* ===================== icons (inline svg strings) ===================== */
+function iconHome(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>';}
+function iconFolder(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';}
+function iconClock(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>';}
+function iconChart(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M12 19V5M20 19v-7"/></svg>';}
+function iconPlus(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>';}
+function iconEdit(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';}
+function iconTrash(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>';}
+function iconDownload(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0l-4-4m4 4l4-4"/><path d="M4 19h16"/></svg>';}
+function iconSettings(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg>';}
+function iconAlert(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>';}
+function iconCheck(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';}
+function iconPlay(){return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';}
+function iconStop(){return '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';}
+function iconInbox(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>';}
+function iconMessage(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';}
+function iconCopy(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';}
+function iconLogout(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>';}
+
+/* ===================== utils ===================== */
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function nowISO(){return new Date().toISOString();}
+function todayStr(){return dateToStr(new Date());}
+function dateToStr(d){var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day;}
+function parseDateLocal(s){ if(!s) return null; var parts=s.split('-'); return new Date(+parts[0], +parts[1]-1, +parts[2]); }
+function fmtDate(s){ var d=parseDateLocal(s); if(!d) return '—'; return d.toLocaleDateString(undefined,{month:'short', day:'numeric'}); }
+function fmtDateFull(s){ var d=parseDateLocal(s); if(!d) return '—'; return d.toLocaleDateString(undefined,{month:'short', day:'numeric', year:'numeric'}); }
+function fmtDateDDMMYYYY(s){ var d=parseDateLocal(s); if(!d) return s||''; return String(d.getDate()).padStart(2,'0')+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+d.getFullYear(); }
+function latestWorklogDate(){
+  var max=null; state.worklogs.forEach(function(w){ if(w.date && (!max || w.date>max)) max=w.date; });
+  return max || todayStr();
+}
+function buildWhatsAppText(dateStr){
+  var entries = state.worklogs.filter(function(w){return w.date===dateStr;})
+    .sort(function(a,b){
+      if(a.startTime && b.startTime) return a.startTime.localeCompare(b.startTime);
+      return (a.createdAt||'').localeCompare(b.createdAt||'');
+    });
+  var header = 'Work log on '+fmtDateDDMMYYYY(dateStr);
+  if(!entries.length) return header+'\n(No entries logged for this day.)';
+  var lines = entries.map(function(w){
+    var text = (w.particulars||'').trim();
+    if(!text) text = (w.category||'Work')+' — '+(w.projectName||'project');
+    if(!/[.!?]$/.test(text)) text += '.';
+    return text;
+  });
+  return header+'\n'+lines.join('\n');
+}
+function daysSince(dateStr){ if(!dateStr) return null; var d=parseDateLocal(dateStr); var today=new Date(); d.setHours(0,0,0,0); today.setHours(0,0,0,0); return Math.round((today-d)/86400000); }
+function minsToHrs(m){ return (Math.round((m||0)/6)/10); }
+function fmtHrs(m){ var h=minsToHrs(m); return (h%1===0? h.toFixed(0): h.toFixed(1))+'h'; }
+function fmtHM(mins){ mins=Math.max(0,Math.round(mins)); var h=Math.floor(mins/60), m=mins%60; return h+'h '+String(m).padStart(2,'0')+'m'; }
+function startOfWeek(d){ var dt=new Date(d); var day=(dt.getDay()+6)%7; dt.setDate(dt.getDate()-day); dt.setHours(0,0,0,0); return dt; }
+function clamp(n,a,b){return Math.max(a,Math.min(b,n));}
+function debounceRAF(fn){ return function(){ if(renderQueued) return; renderQueued=true; requestAnimationFrame(function(){ renderQueued=false; fn(); }); }; }
+function isUnstartedLike(v){ return v==='Not Started' || v==='Not Completed'; }
+function overallStatus(p){
+  var vals = DIMENSIONS.map(function(d){return p[d.key]||d.def;});
+  if(vals.every(function(v){return v==='Completed';})) return 'Completed';
+  if(vals.every(isUnstartedLike)) return 'Not Started';
+  return 'In Progress';
+}
+function statusDot(status){
+  if(status==='Completed') return 'var(--good)';
+  if(isUnstartedLike(status)) return 'var(--text-muted)';
+  if(status==='Draft') return 'var(--cat-technical)';
+  return 'var(--warning)'; // WIP / In Progress / Scheduled
+}
+function projectMinutes(pid){
+  var t=0; for(var i=0;i<state.worklogs.length;i++){ if(state.worklogs[i].projectId===pid) t+=(state.worklogs[i].durationMinutes||0); } return t;
+}
+function projectById(id){ for(var i=0;i<state.projects.length;i++) if(state.projects[i].id===id) return state.projects[i]; return null; }
+function toast(msg, opts){
+  opts = opts || {};
+  var wrap=document.getElementById('toast-wrap');
+  var el=document.createElement('div'); el.className='toast'+(opts.error?' toast-error':''); el.textContent=msg;
+  wrap.appendChild(el);
+  var dur = opts.error ? 6000 : 2600;
+  setTimeout(function(){ el.style.transition='opacity .25s'; el.style.opacity='0'; setTimeout(function(){el.remove();},250); }, dur);
+}
+function toastError(msg){ toast(msg, {error:true}); }
+function delay(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+// Retry once on what looks like a transient network failure (the fetch
+// itself failing) rather than a real rejection from the server (bad data,
+// permission denied, etc — retrying those can't succeed).
+async function withRetry(fn){
+  try{ return await fn(); }
+  catch(e){
+    var msg = (e && e.message) || '';
+    var looksTransient = (e instanceof TypeError) || /network|fetch/i.test(msg);
+    if(looksTransient){
+      await delay(300+Math.random()*400);
+      return await fn();
+    }
+    throw e;
+  }
+}
+function describeDbError(e, action){
+  var msg = (e && e.message) || '';
+  if(/JWT|expired|not authenticated|401/i.test(msg)) return 'Your session expired — sign in again to continue.';
+  if(/permission|RLS|row-level/i.test(msg)) return 'Not allowed to '+action+'. Try signing out and back in.';
+  if(/network|fetch/i.test(msg)) return 'Connection hiccup — couldn\'t '+action+'. Try again in a moment.';
+  return 'Couldn\'t '+action+(msg? ' ('+msg+')' : '')+'. Try again.';
+}
+// Unwraps a Supabase {data, error} response into a resolved value or a
+// thrown error, so the rest of the app can keep using plain try/catch.
+function sbCall(promise){
+  return promise.then(function(res){
+    if(res && res.error) throw res.error;
+    return res ? res.data : undefined;
+  });
+}
+
+/* ===================== auth ===================== */
+async function initCapabilities(){
+  if(!sb){
+    // No Supabase URL/key configured yet — nothing to sign into.
+    state.authChecked = true;
+    state.ready = true;
+    render();
+    return;
+  }
+  downloadsCap = true;
+  sb.auth.onAuthStateChange(function(event, session){
+    var wasSignedIn = !!state.session;
+    state.session = session;
+    if(session && !wasSignedIn){
+      db = true;
+      state.dbAvailable = true;
+      subscribeAll();
+    } else if(!session){
+      db = null;
+      state.dbAvailable = null;
+      state.projects = []; state.worklogs = []; state.settings = {staleDays:5};
+      state.projectsLoaded = false; state.worklogsLoaded = false;
+    }
+    render();
+  });
+  try{
+    var res = await sb.auth.getSession();
+    state.session = res.data.session;
+    if(state.session){ db = true; state.dbAvailable = true; subscribeAll(); }
+  }catch(e){ /* onAuthStateChange will still fire when/if a session appears */ }
+  state.authChecked = true;
+  state.ready = true;
+  render();
+}
+async function signIn(email, password){
+  if(!sb) return;
+  state.authBusy = true; state.authError = ''; render();
+  var res = await sb.auth.signInWithPassword({email:email, password:password});
+  state.authBusy = false;
+  if(res.error){ state.authError = res.error.message; render(); return; }
+  // onAuthStateChange handles the rest.
+}
+async function signUp(email, password){
+  if(!sb) return;
+  state.authBusy = true; state.authError = ''; render();
+  var res = await sb.auth.signUp({email:email, password:password});
+  state.authBusy = false;
+  if(res.error){ state.authError = res.error.message; render(); return; }
+  if(res.data.session){ /* onAuthStateChange handles it */ }
+  else { state.authError = 'Check your email to confirm your account, then sign in.'; state.authMode = 'signin'; render(); }
+}
+async function signOut(){
+  if(!sb) return;
+  try{ await sb.auth.signOut(); }catch(e){}
+}
+
+var scheduledRender = null;
+
+// Prime the UI with a one-time read. Safe to call again later (see
+// reloadData) since it doesn't open any new subscriptions.
+function loadInitialData(){
+  var scheduled = scheduledRender;
+  withRetry(function(){ return sbCall(sb.from('projects').select('*').order('createdAt', {ascending:true})); }).then(function(rows){
+    state.projects = rows || [];
+    state.projectsLoaded = true;
+    scheduled();
+  }).catch(function(err){
+    state.projectsLoaded = true;
+    toastError(describeDbError(err, 'load projects'));
+    scheduled();
+  });
+
+  withRetry(function(){ return sbCall(sb.from('worklogs').select('*').order('date', {ascending:true})); }).then(function(rows){
+    state.worklogs = rows || [];
+    state.worklogsLoaded = true;
+    scheduled();
+  }).catch(function(err){
+    state.worklogsLoaded = true;
+    toastError(describeDbError(err, 'load worklog'));
+    scheduled();
+  });
+
+  withRetry(function(){ return sbCall(sb.from('settings').select('*').maybeSingle()); }).then(function(row){
+    state.settings = Object.assign({staleDays:5}, row||{});
+    scheduled();
+  }).catch(function(){ /* keep defaults */ });
+}
+
+function subscribeAll(){
+  scheduledRender = debounceRAF(render);
+  loadInitialData();
+  // Live cross-tab/device sync isn't wired up yet — Supabase Realtime can
+  // be added later (see the note in schema.sql). For now every write
+  // updates the on-screen list immediately (see CRUD below), and the
+  // "Reload data" button re-fetches on demand.
+}
+// Manual "try again" affordance (a button in the loading/empty states) —
+// re-runs the one-time read.
+function reloadData(){
+  if(!db){ location.reload(); return; }
+  toast('Reloading…');
+  loadInitialData();
+}
+
+/* ===================== timer (localStorage convenience) ===================== */
+function loadTimer(){
+  try{
+    var raw = localStorage.getItem('relay_timer');
+    if(raw){ state.timer = JSON.parse(raw); startTicking(); }
+  }catch(e){ state.timer = null; }
+}
+function persistTimer(){
+  try{
+    if(state.timer) localStorage.setItem('relay_timer', JSON.stringify(state.timer));
+    else localStorage.removeItem('relay_timer');
+  }catch(e){}
+}
+function startTicking(){
+  if(timerInterval) return;
+  timerInterval = setInterval(function(){ state.timerTick++; updateTimerDisplays(); }, 1000);
+}
+function stopTicking(){ if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } }
+function updateTimerDisplays(){
+  document.querySelectorAll('.js-timer-clock').forEach(function(el){
+    el.textContent = state.timer ? elapsedStr(state.timer.startedAt) : '0:00:00';
+  });
+}
+function elapsedStr(startedAt){
+  var s = Math.max(0, Math.floor((Date.now()-startedAt)/1000));
+  var h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
+  return h+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+}
+function beginTimer(projectId, category, particulars){
+  if(!projectId){ toast('Choose a project first.'); return; }
+  state.timer = {projectId:projectId, category:category||'Technical', particulars:particulars||'', startedAt:Date.now()};
+  persistTimer(); startTicking(); render();
+}
+async function endTimer(){
+  if(!state.timer) return;
+  var t = state.timer;
+  var endedAt = Date.now();
+  var durationMinutes = Math.max(1, Math.round((endedAt-t.startedAt)/60000));
+  var startD = new Date(t.startedAt), endD = new Date(endedAt);
+  var proj = projectById(t.projectId);
+  var entry = {
+    projectId: t.projectId,
+    projectName: proj ? proj.name : 'Unknown project',
+    date: dateToStr(startD),
+    particulars: t.particulars || '(timed entry)',
+    category: t.category || 'Technical',
+    startTime: fmtTimeHM(startD),
+    endTime: fmtTimeHM(endD),
+    durationMinutes: durationMinutes,
+    createdAt: nowISO()
+  };
+  if(!db){ toastError('Not connected — reload the page and try again.'); return; }
+  try{
+    var row = await withRetry(function(){ return sbCall(sb.from('worklogs').insert(entry).select().single()); });
+    state.worklogs.push(row);
+    state.worklogsLoaded = true;
+    state.timer = null; persistTimer(); stopTicking();
+    toast('Logged '+fmtHrs(durationMinutes)+' to '+entry.projectName+'.');
+  }catch(e){
+    toastError(describeDbError(e,'save the timed entry')+' Your timer is still running — try Stop again.');
+  }
+  render();
+}
+function fmtTimeHM(d){ return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+
+/* ===================== CRUD ===================== */
+async function saveProject(data, id){
+  if(!db){ toastError('Not connected — reload the page and try again.'); return; }
+  try{
+    if(id){
+      var patch = Object.assign({}, data, {updatedAt:nowISO()});
+      await withRetry(function(){ return sbCall(sb.from('projects').update(patch).eq('id', id)); });
+      var existing = projectById(id);
+      if(existing) Object.assign(existing, patch);
+      toast('Project updated.');
+    } else {
+      var payload = Object.assign({}, data, {createdAt:nowISO(), updatedAt:nowISO()});
+      var row = await withRetry(function(){ return sbCall(sb.from('projects').insert(payload).select().single()); });
+      state.projects.push(row);
+      state.projectsLoaded = true;
+      toast('Project added.');
+    }
+    closeModal();
+    render();
+  }catch(e){ toastError(describeDbError(e,'save the project')); }
+}
+async function deleteProjectConfirmed(id){
+  if(!db) return;
+  try{
+    await withRetry(function(){ return sbCall(sb.from('projects').delete().eq('id', id)); });
+    state.projects = state.projects.filter(function(p){ return p.id!==id; });
+    toast('Project deleted.'); closeModal(); render();
+  }
+  catch(e){ toastError(describeDbError(e,'delete the project')); }
+}
+async function touchLastComm(id){
+  if(!db) return;
+  try{
+    var patch = {lastCommunication: todayStr(), updatedAt: nowISO()};
+    await withRetry(function(){ return sbCall(sb.from('projects').update(patch).eq('id', id)); });
+    var existing = projectById(id);
+    if(existing) Object.assign(existing, patch);
+    toast('Marked as contacted today.'); render();
+  }
+  catch(e){ toastError(describeDbError(e,'update this project')); }
+}
+async function saveWorklog(data, id){
+  if(!db){ toastError('Not connected — reload the page and try again.'); return; }
+  var proj = projectById(data.projectId);
+  data.projectName = proj ? proj.name : 'Unknown project';
+  try{
+    if(id){
+      await withRetry(function(){ return sbCall(sb.from('worklogs').update(data).eq('id', id)); });
+      var existing = state.worklogs.filter(function(w){return w.id===id;})[0];
+      if(existing) Object.assign(existing, data);
+      toast('Entry updated.');
+    } else {
+      data.createdAt=nowISO();
+      var row = await withRetry(function(){ return sbCall(sb.from('worklogs').insert(data).select().single()); });
+      state.worklogs.push(row);
+      state.worklogsLoaded = true;
+      toast('Time logged.');
+    }
+    closeModal();
+    render();
+  }catch(e){ toastError(describeDbError(e,'save the entry')); }
+}
+async function deleteWorklogConfirmed(id){
+  if(!db) return;
+  try{
+    await withRetry(function(){ return sbCall(sb.from('worklogs').delete().eq('id', id)); });
+    state.worklogs = state.worklogs.filter(function(w){ return w.id!==id; });
+    toast('Entry deleted.'); closeModal(); render();
+  }
+  catch(e){ toastError(describeDbError(e,'delete the entry')); }
+}
+async function saveSettings(staleDays){
+  if(!db) return;
+  try{
+    await withRetry(function(){ return sbCall(sb.from('settings').upsert({staleDays:staleDays})); });
+    state.settings.staleDays = staleDays;
+    toast('Settings saved.'); closeModal(); render();
+  }
+  catch(e){ toastError(describeDbError(e,'save settings')); }
+}
+
+/* ===================== CSV export ===================== */
+function csvEscape(v){ v=String(v==null?'':v); if(/[",\n]/.test(v)) return '"'+v.replace(/"/g,'""')+'"'; return v; }
+async function exportProjectsCSV(){
+  var rows=[['Project','Overall Status',
+    'Company Profile','Company Profile Owner','Company Profile Notes',
+    'Technical','Technical Owner','Technical Notes',
+    'Financial','Financial Owner','Financial Notes',
+    'Marketing','Marketing Owner','Marketing Notes',
+    'Site Visit','Site Visit Owner','Site Visit Notes',
+    'Industry','Contact Person','Contact Email','Contact Phone','Location','Website',
+    'Last Communication','Days Since Contact','Next Action','Next Move Owner','Total Hours','Remarks']];
+  state.projects.forEach(function(p){
+    rows.push([p.name, overallStatus(p),
+      p.companyProfile||'', p.companyProfileOwner||'', p.companyProfileRemarks||'',
+      p.technical||'', p.technicalOwner||'', p.technicalRemarks||'',
+      p.financial||'', p.financialOwner||'', p.financialRemarks||'',
+      p.marketing||'', p.marketingOwner||'', p.marketingRemarks||'',
+      p.siteVisit||'', p.siteVisitOwner||'', p.siteVisitRemarks||'',
+      p.companyIndustry||'', p.companyContact||'', p.companyEmail||'', p.companyPhone||'', p.companyLocation||'', p.companyWebsite||'',
+      p.lastCommunication||'', daysSince(p.lastCommunication), p.nextAction||'', p.actionOwner==='client'?'Client':'Us',
+      minsToHrs(projectMinutes(p.id)), p.remarks||'']);
+  });
+  var csv = rows.map(function(r){return r.map(csvEscape).join(',');}).join('\r\n');
+  await doDownload('relay-projects.csv', csv);
+}
+async function exportWorklogCSV(){
+  var rows=[['Date','Project','Category','Particulars','Start','End','Hours']];
+  state.worklogs.slice().sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}).forEach(function(w){
+    rows.push([w.date||'', w.projectName||'', w.category||'', w.particulars||'', w.startTime||'', w.endTime||'', minsToHrs(w.durationMinutes)]);
+  });
+  var csv = rows.map(function(r){return r.map(csvEscape).join(',');}).join('\r\n');
+  await doDownload('relay-worklog.csv', csv);
+}
+async function doDownload(filename, data){
+  try{
+    var blob = new Blob([data], {type:'text/plain;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    toast('Exported '+filename+'.');
+  }catch(e){ toast('Could not export the file.'); }
+}
+
+/* ===================== render: shell / nav ===================== */
+function setView(v){ state.view=v; location.hash=v; render(); }
+window.addEventListener('hashchange', function(){ var v=(location.hash||'').replace('#',''); if(v) { state.view=v; render(); } });
+
+function renderNav(){
+  var followupCount = computeFollowups().length;
+  function itemHTML(n, mobile){
+    var active = state.view===n.key;
+    return '<button class="navitem'+(active?' active':'')+'" data-action="nav" data-view="'+n.key+'">'+
+      n.icon()+'<span>'+n.label+'</span>'+
+      (n.key==='dashboard' && followupCount>0 ? '<span class="nav-badge">'+followupCount+'</span>' : '')+
+      '</button>';
+  }
+  var sb = document.getElementById('sidebar');
+  sb.innerHTML =
+    '<div class="brand"><div class="brand-mark"></div><div class="brand-name">Relay</div></div>'+
+    NAV_ITEMS.map(function(n){return itemHTML(n);}).join('')+
+    '<div class="sidebar-foot">'+
+      '<button class="navitem" data-action="open-settings">'+iconSettings()+'<span>Settings</span></button>'+
+      '<button class="navitem" data-action="export-projects">'+iconDownload()+'<span>Export projects CSV</span></button>'+
+      '<button class="navitem" data-action="export-worklog">'+iconDownload()+'<span>Export worklog CSV</span></button>'+
+      (state.session ? '<button class="navitem" data-action="sign-out">'+iconLogout()+'<span>Sign out</span></button>' : '')+
+    '</div>';
+  document.getElementById('bottomnav').innerHTML = NAV_ITEMS.map(function(n){return itemHTML(n, true);}).join('');
+
+  var titles = {dashboard:'Dashboard', projects:'Projects', worklog:'Worklog', analytics:'Analytics'};
+  document.getElementById('view-title').textContent = titles[state.view] || 'Relay';
+
+  var actions = document.getElementById('topbar-actions');
+  if(state.view==='projects'){
+    actions.innerHTML = '<button class="btn btn-primary" data-action="new-project">'+iconPlus()+'New project</button>';
+  } else if(state.view==='worklog'){
+    actions.innerHTML = '<button class="btn btn-primary" data-action="new-log">'+iconPlus()+'Log time</button>';
+  } else {
+    actions.innerHTML = '';
+  }
+
+  ['view-dashboard','view-projects','view-worklog','view-analytics'].forEach(function(id){
+    document.getElementById(id).hidden = (id !== 'view-'+state.view);
+  });
+}
+
+/* ===================== follow-ups ===================== */
+function computeFollowups(){
+  var sd = state.settings.staleDays||5;
+  return state.projects.filter(function(p){
+    return overallStatus(p)!=='Completed' && daysSince(p.lastCommunication)!==null && daysSince(p.lastCommunication) > sd;
+  }).sort(function(a,b){ return daysSince(b.lastCommunication)-daysSince(a.lastCommunication); });
+}
+
+/* ===================== dashboard ===================== */
+function renderDashboard(){
+  var el = document.getElementById('view-dashboard');
+  if(!state.ready){ el.innerHTML = loadingHTML(); return; }
+  if(!state.dbAvailable){ el.innerHTML = dbUnavailableHTML(); return; }
+  if(!state.projectsLoaded || !state.worklogsLoaded){ el.innerHTML = loadingHTML(); return; }
+  if(!state.projects.length && !state.worklogs.length){
+    el.innerHTML = emptyHTML(iconInbox(), 'Welcome to Relay', 'Add your first client engagement to start tracking status, follow-ups, and hours — no more scattered spreadsheets.', 'new-project', 'Add your first project');
+    return;
+  }
+  var active = state.projects.filter(function(p){return overallStatus(p)!=='Completed';}).length;
+  var completed = state.projects.filter(function(p){return overallStatus(p)==='Completed';}).length;
+  var weekStart = startOfWeek(new Date());
+  var hoursWeek = state.worklogs.filter(function(w){ var d=parseDateLocal(w.date); return d && d>=weekStart; })
+    .reduce(function(s,w){return s+(w.durationMinutes||0);},0);
+  var followups = computeFollowups();
+
+  var recent = state.worklogs.slice().sort(function(a,b){ return (b.createdAt||'').localeCompare(a.createdAt||''); }).slice(0,6);
+
+  el.innerHTML =
+    '<div class="grid-stats">'+
+      statTile('Active projects', active, 'in progress') +
+      statTile('Completed', completed, completed===1?'project wrapped up':'projects wrapped up') +
+      statTile('Hours this week', fmtHrs(hoursWeek), 'since Monday') +
+      statTile('Follow-ups due', followups.length, followups.length ? 'client waiting on you' : 'all caught up') +
+    '</div>'+
+    '<div class="two-col">'+
+      '<div>'+
+        '<div class="section-head"><h2>Needs follow-up</h2><span class="count">'+followups.length+'</span></div>'+
+        followupsCardHTML(followups)+
+      '</div>'+
+      '<div>'+
+        '<div class="section-head"><h2>Recent activity</h2></div>'+
+        recentActivityHTML(recent)+
+      '</div>'+
+    '</div>';
+}
+function statTile(label, value, sub){
+  return '<div class="card stat-tile"><div class="stat-label">'+esc(label)+'</div><div class="stat-value">'+esc(value)+'</div><div class="stat-sub">'+esc(sub)+'</div></div>';
+}
+function followupsCardHTML(list){
+  if(!list.length){
+    return '<div class="card"><div class="empty" style="padding:30px 20px;">'+iconCheck()+'<h3>You\'re all caught up</h3><p>No client is waiting past your follow-up window right now.</p></div></div>';
+  }
+  return '<div class="card">'+ list.map(function(p){
+    var d = daysSince(p.lastCommunication);
+    return '<div class="followup">'+
+      '<span class="pill"><span class="dot" style="background:var(--critical)"></span>'+d+'d</span>'+
+      '<div class="fu-main"><div class="fu-name">'+esc(p.name)+'</div>'+
+        '<div class="fu-sub">'+(p.nextAction? esc(p.nextAction) : 'No next action noted')+' · '+(p.actionOwner==='client'?'Client owes reply':'You owe next move')+'</div>'+
+      '</div>'+
+      '<button class="btn btn-sm" data-action="touch-comm" data-id="'+p.id+'">Mark contacted</button>'+
+      '<button class="icon-btn" data-action="edit-project" data-id="'+p.id+'" data-tip="Edit project">'+iconEdit()+'</button>'+
+    '</div>';
+  }).join('') + '</div>';
+}
+function recentActivityHTML(list){
+  if(!list.length){
+    return '<div class="card"><div class="empty" style="padding:30px 20px;">'+iconClock()+'<h3>No time logged yet</h3><p>Start the timer or log a manual entry from the Worklog tab.</p></div></div>';
+  }
+  return '<div class="card">'+ list.map(function(w){
+    return '<div class="followup">'+
+      '<span class="dim-chip"><span class="dot" style="background:var('+ (CATEGORY_VAR[w.category]||'--text-muted') +')"></span>'+esc(w.category||'—')+'</span>'+
+      '<div class="fu-main"><div class="fu-name">'+esc(w.projectName||'Unknown project')+'</div>'+
+        '<div class="fu-sub">'+esc(w.particulars||'')+' · '+fmtDate(w.date)+'</div>'+
+      '</div>'+
+      '<span class="num sec" style="font-weight:700;">'+fmtHrs(w.durationMinutes)+'</span>'+
+    '</div>';
+  }).join('') + '</div>';
+}
+
+/* ===================== projects view ===================== */
+function renderProjects(){
+  var el = document.getElementById('view-projects');
+  if(!state.ready){ el.innerHTML = loadingHTML(); return; }
+  if(!state.dbAvailable){ el.innerHTML = dbUnavailableHTML(); return; }
+  if(!state.projectsLoaded || !state.worklogsLoaded){ el.innerHTML = loadingHTML(); return; }
+  if(!state.projects.length){
+    el.innerHTML = emptyHTML(iconFolder(), 'No projects yet', 'Add a client engagement to start tracking its status across technical, financial, marketing and site-visit work.', 'new-project', 'Add your first project');
+    return;
+  }
+  var q = state.search.trim().toLowerCase();
+  var filtered = state.projects.filter(function(p){
+    var matchesSearch = !q || (p.name||'').toLowerCase().indexOf(q)>-1 || (p.remarks||'').toLowerCase().indexOf(q)>-1;
+    var matchesStatus = state.statusFilter==='all' || overallStatus(p)===state.statusFilter;
+    return matchesSearch && matchesStatus;
+  }).sort(function(a,b){
+    var da=daysSince(a.lastCommunication), db_=daysSince(b.lastCommunication);
+    return (db_==null?-1:db_)-(da==null?-1:da);
+  });
+
+  var filterChips = ['all','Not Started','In Progress','Completed'].map(function(s){
+    var label = s==='all' ? 'All' : s;
+    return '<button class="btn btn-sm'+(state.statusFilter===s?' btn-primary':'')+'" data-action="filter-status" data-status="'+s+'">'+esc(label)+'</button>';
+  }).join('');
+
+  el.innerHTML =
+    '<div class="section-head" style="margin-top:0;">'+
+      '<input type="search" placeholder="Search projects…" value="'+esc(state.search)+'" data-action="search-projects" style="max-width:220px;">'+
+      '<div style="display:flex; gap:6px;">'+filterChips+'</div>'+
+    '</div>'+
+    (filtered.length ? projectsTableHTML(filtered) : '<div class="card"><div class="empty">'+iconFolder()+'<h3>No matches</h3><p>Try a different search term or status filter.</p></div></div>');
+}
+function projectsTableHTML(list){
+  var rows = list.map(function(p){
+    var st = overallStatus(p);
+    var d = daysSince(p.lastCommunication);
+    var stale = st!=='Completed' && d!=null && d>(state.settings.staleDays||5);
+    return '<tr class="row-clickable" data-action="edit-project" data-id="'+p.id+'">'+
+      '<td><b>'+esc(p.name)+'</b></td>'+
+      '<td><span class="pill"><span class="dot" style="background:'+statusDot(st)+'"></span>'+esc(st)+'</span></td>'+
+      '<td><div class="dim-row">'+DIMENSIONS.map(function(dm){
+        var dmOwner = p[dm.key+'Owner'];
+        var dmRemarks = p[dm.key+'Remarks'];
+        var tip = dm.label+': '+esc(p[dm.key]||dm.def)+(dmOwner?' · Owner: '+esc(dmOwner):'')+(dmRemarks?' · '+esc(dmRemarks):'');
+        return '<span class="dim-chip" data-tip="'+tip+'"><span class="dot" style="background:'+statusDot(p[dm.key]||dm.def)+'"></span>'+dm.short+(dmOwner?' · <b>'+esc(dmOwner)+'</b>':'')+'</span>';
+      }).join('')+'</div></td>'+
+      '<td>'+ (d==null ? '<span class="muted">—</span>' : '<span class="'+(stale?'' :'sec')+'" style="'+(stale?'color:var(--critical); font-weight:700;':'')+'">'+d+'d ago</span>') +'</td>'+
+      '<td class="trunc" data-tip="'+esc(p.nextAction||'')+'">'+(p.nextAction? esc(p.nextAction): '<span class="muted">—</span>')+'</td>'+
+      '<td><span class="pill"><span class="dot" style="background:'+(p.actionOwner==='client'?'var(--owner-client)':'var(--owner-us)')+'"></span>'+(p.actionOwner==='client'?'Client':'Us')+'</span></td>'+
+      '<td class="num">'+fmtHrs(projectMinutes(p.id))+'</td>'+
+      '<td onclick="event.stopPropagation()"><button class="icon-btn" data-action="delete-project" data-id="'+p.id+'" data-tip="Delete">'+iconTrash()+'</button></td>'+
+    '</tr>';
+  }).join('');
+  return '<div class="table-wrap"><table><thead><tr>'+
+    '<th>Project</th><th>Status</th><th>Dimensions</th><th>Last contact</th><th>Next action</th><th>Owner</th><th>Hours</th><th></th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+
+/* ===================== worklog view ===================== */
+function renderWorklog(){
+  var el = document.getElementById('view-worklog');
+  if(!state.ready){ el.innerHTML = loadingHTML(); return; }
+  if(!state.dbAvailable){ el.innerHTML = dbUnavailableHTML(); return; }
+  if(!state.projectsLoaded || !state.worklogsLoaded){ el.innerHTML = loadingHTML(); return; }
+
+  var projOptions = state.projects.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>';}).join('');
+  var timerRunning = !!state.timer;
+  var timerProjName = timerRunning ? (projectById(state.timer.projectId)||{}).name || 'Unknown project' : '';
+
+  var timerHTML = !state.projects.length ?
+    '<div class="card timer-card"><span class="muted">Add a project first to start timing your work.</span></div>' :
+    (timerRunning ?
+      '<div class="card timer-card">'+
+        '<div class="timer-display"><span class="pulse-dot"></span><span class="timer-clock running js-timer-clock">'+elapsedStr(state.timer.startedAt)+'</span></div>'+
+        '<div class="timer-fields"><div class="field" style="margin-bottom:0;"><label>Tracking</label><div style="padding-top:9px; font-weight:700;">'+esc(timerProjName)+' · '+esc(state.timer.category)+'</div></div>'+
+        '<div class="field" style="margin-bottom:0; flex:2;"><label>Particulars</label><div style="padding-top:9px;" class="sec">'+esc(state.timer.particulars||'—')+'</div></div></div>'+
+        '<button class="btn btn-primary" data-action="stop-timer" style="background:var(--critical); border-color:var(--critical);">'+iconStop()+'Stop &amp; log</button>'+
+      '</div>'
+      :
+      '<div class="card timer-card">'+
+        '<div class="timer-display"><span class="timer-clock js-timer-clock">0:00:00</span></div>'+
+        '<div class="timer-fields">'+
+          '<div class="field" style="margin-bottom:0;"><label>Project</label><select id="timer-project">'+projOptions+'</select></div>'+
+          '<div class="field" style="margin-bottom:0;"><label>Category</label><select id="timer-category">'+CATEGORIES.map(function(c){return '<option'+(c==='Technical'?' selected':'')+'>'+c+'</option>';}).join('')+'</select></div>'+
+          '<div class="field" style="margin-bottom:0; flex:2;"><label>Particulars</label><input type="text" id="timer-particulars" placeholder="What are you working on?"></div>'+
+        '</div>'+
+        '<button class="btn btn-primary" data-action="start-timer">'+iconPlay()+'Start timer</button>'+
+      '</div>');
+
+  var filterOptions = '<option value="all">All projects</option>' + state.projects.map(function(p){return '<option value="'+p.id+'"'+(state.logFilterProject===p.id?' selected':'')+'>'+esc(p.name)+'</option>';}).join('');
+  var entries = state.worklogs.filter(function(w){ return state.logFilterProject==='all' || w.projectId===state.logFilterProject; })
+    .sort(function(a,b){ return (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''); });
+  var totalMin = entries.reduce(function(s,w){return s+(w.durationMinutes||0);},0);
+
+  el.innerHTML =
+    '<div class="section-head" style="margin-top:0;"><h2>Timer</h2></div>'+
+    timerHTML+
+    '<div class="section-head"><h2>Entries</h2><span class="count">'+fmtHrs(totalMin)+' total</span><div class="spacer"></div>'+
+      '<button class="btn btn-sm" data-action="open-whatsapp">'+iconMessage()+'WhatsApp log</button>'+
+      '<select data-action="filter-log-project" style="max-width:220px;">'+filterOptions+'</select>'+
+    '</div>'+
+    (entries.length ? worklogTableHTML(entries) : '<div class="card"><div class="empty">'+iconClock()+'<h3>No entries'+(state.logFilterProject!=='all'?' for this project':'')+'</h3><p>Use the timer above or "Log time" to add one.</p></div></div>');
+}
+function worklogTableHTML(list){
+  var rows = list.map(function(w){
+    return '<tr class="row-clickable" data-action="edit-log" data-id="'+w.id+'">'+
+      '<td class="sec">'+fmtDate(w.date)+'</td>'+
+      '<td><b>'+esc(w.projectName||'—')+'</b></td>'+
+      '<td><span class="dim-chip"><span class="dot" style="background:var('+ (CATEGORY_VAR[w.category]||'--text-muted') +')"></span>'+esc(w.category||'—')+'</span></td>'+
+      '<td class="trunc" data-tip="'+esc(w.particulars||'')+'">'+esc(w.particulars||'—')+'</td>'+
+      '<td class="sec num">'+(w.startTime&&w.endTime? esc(w.startTime)+'–'+esc(w.endTime) : '—')+'</td>'+
+      '<td class="num"><b>'+fmtHrs(w.durationMinutes)+'</b></td>'+
+      '<td onclick="event.stopPropagation()"><button class="icon-btn" data-action="delete-log" data-id="'+w.id+'" data-tip="Delete">'+iconTrash()+'</button></td>'+
+    '</tr>';
+  }).join('');
+  return '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Project</th><th>Category</th><th>Particulars</th><th>Time</th><th>Hours</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+
+/* ===================== analytics view ===================== */
+function renderAnalytics(){
+  var el = document.getElementById('view-analytics');
+  if(!state.ready){ el.innerHTML = loadingHTML(); return; }
+  if(!state.dbAvailable){ el.innerHTML = dbUnavailableHTML(); return; }
+  if(!state.projectsLoaded || !state.worklogsLoaded){ el.innerHTML = loadingHTML(); return; }
+  if(!state.worklogs.length){
+    el.innerHTML = emptyHTML(iconChart(), 'Nothing to chart yet', 'Log some hours in the Worklog tab and your project and category breakdowns will appear here.', 'new-log', 'Log time');
+    return;
+  }
+  var byProject = {}; state.worklogs.forEach(function(w){ byProject[w.projectId]=(byProject[w.projectId]||0)+(w.durationMinutes||0); });
+  var projRows = Object.keys(byProject).map(function(pid){ var p=projectById(pid); return {label: p? p.name : 'Deleted project', mins: byProject[pid]}; })
+    .sort(function(a,b){return b.mins-a.mins;}).slice(0,8);
+  var maxProjMin = Math.max.apply(null, projRows.map(function(r){return r.mins;}).concat([1]));
+
+  var byCat = {}; CATEGORIES.forEach(function(c){byCat[c]=0;});
+  state.worklogs.forEach(function(w){ byCat[w.category||'Other']=(byCat[w.category||'Other']||0)+(w.durationMinutes||0); });
+  var maxCatMin = Math.max.apply(null, Object.keys(byCat).map(function(k){return byCat[k];}).concat([1]));
+
+  var days=[]; for(var i=13;i>=0;i--){ var d=new Date(); d.setDate(d.getDate()-i); days.push(d); }
+  var byDay = {}; state.worklogs.forEach(function(w){ byDay[w.date]=(byDay[w.date]||0)+(w.durationMinutes||0); });
+  var maxDayMin = Math.max.apply(null, days.map(function(d){return byDay[dateToStr(d)]||0;}).concat([1]));
+
+  el.innerHTML =
+    '<div class="chart-card card" style="margin-bottom:16px;">'+
+      '<div class="chart-title">Hours by project</div><div class="chart-caption">Top '+projRows.length+' by total time logged</div>'+
+      projRows.map(function(r){
+        var pct = Math.max(4, Math.round(r.mins/maxProjMin*100));
+        return '<div class="hbar-row"><div class="hbar-label" title="'+esc(r.label)+'">'+esc(r.label)+'</div>'+
+          '<div class="hbar-track" data-tip="'+fmtHrs(r.mins)+'"><div class="hbar-fill" style="width:'+pct+'%; background:var(--accent);"></div></div>'+
+          '<div class="hbar-val">'+fmtHrs(r.mins)+'</div></div>';
+      }).join('')+
+    '</div>'+
+    '<div class="two-col">'+
+      '<div class="chart-card card">'+
+        '<div class="chart-title">Hours by category</div><div class="chart-caption">Where the time actually goes</div>'+
+        CATEGORIES.map(function(c){
+          var pct = Math.max(byCat[c]>0?4:0, Math.round(byCat[c]/maxCatMin*100));
+          return '<div class="hbar-row"><div class="hbar-label">'+c+'</div>'+
+            '<div class="hbar-track" data-tip="'+fmtHrs(byCat[c])+'"><div class="hbar-fill full-round" style="width:'+pct+'%; background:var('+CATEGORY_VAR[c]+');"></div></div>'+
+            '<div class="hbar-val">'+fmtHrs(byCat[c])+'</div></div>';
+        }).join('')+
+        '<div class="legend">'+CATEGORIES.map(function(c){return '<span class="legend-item"><span class="dot" style="background:var('+CATEGORY_VAR[c]+')"></span>'+c+'</span>';}).join('')+'</div>'+
+      '</div>'+
+      '<div class="chart-card card">'+
+        '<div class="chart-title">Last 14 days</div><div class="chart-caption">Daily hours logged</div>'+
+        '<div class="vbar-chart">'+days.map(function(d){
+          var mins = byDay[dateToStr(d)]||0;
+          var pct = Math.max(mins>0?4:1, Math.round(mins/maxDayMin*100));
+          return '<div class="vbar-col" tabindex="0"><span class="vbar-val">'+(mins?fmtHrs(mins):'')+'</span><div class="vbar" style="height:'+pct+'%;"></div><span class="vbar-label">'+d.toLocaleDateString(undefined,{weekday:'narrow'})+'</span></div>';
+        }).join('')+'</div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="section-head"><h2>Export</h2></div>'+
+    '<div class="card card-pad" style="display:flex; gap:10px; flex-wrap:wrap;">'+
+      '<button class="btn" data-action="export-projects">'+iconDownload()+'Projects CSV</button>'+
+      '<button class="btn" data-action="export-worklog">'+iconDownload()+'Worklog CSV</button>'+
+    '</div>';
+}
+
+/* ===================== shared partials ===================== */
+function emptyHTML(icon, title, body, action, actionLabel){
+  return '<div class="card"><div class="empty">'+icon+'<h3>'+esc(title)+'</h3><p>'+esc(body)+'</p>'+
+    '<div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">'+
+      (action? '<button class="btn btn-primary" data-action="'+action+'">'+iconPlus()+esc(actionLabel)+'</button>' : '')+
+      '<button class="btn" data-action="reload-data" data-tip="If you expect to see data here, try this before reloading the page">Reload data</button>'+
+    '</div>'+
+  '</div></div>';
+}
+function dbUnavailableHTML(){
+  return '<div class="card"><div class="empty">'+iconAlert()+'<h3>Can\'t connect right now</h3>'+
+    '<p>Relay couldn\'t reach its storage in this view, so nothing can be loaded or saved at the moment. Try reopening the page.</p></div></div>';
+}
+/* ===================== auth screen ===================== */
+function renderAuthScreen(){
+  var root = document.getElementById('auth-root');
+  if(!sb){
+    root.innerHTML =
+      '<div class="auth-card">'+
+        '<div class="brand" style="display:flex;"><div class="brand-mark"></div><div class="brand-name">Relay</div></div>'+
+        '<h2>Not configured yet</h2>'+
+        '<p class="sub">This copy of Relay has no Supabase project wired up. Open the HTML file and paste your project URL and anon key into the SUPABASE_URL / SUPABASE_ANON_KEY constants near the top of the script, then reload.</p>'+
+      '</div>';
+    return;
+  }
+  var isSignUp = state.authMode==='signup';
+  root.innerHTML =
+    '<div class="auth-card">'+
+      '<div class="brand" style="display:flex;"><div class="brand-mark"></div><div class="brand-name">Relay</div></div>'+
+      '<h2>'+(isSignUp?'Create your account':'Sign in')+'</h2>'+
+      '<p class="sub">'+(isSignUp?'Set up the single account that owns this workspace.':'Welcome back — sign in to see your projects.')+'</p>'+
+      (state.authError? '<div class="auth-error">'+esc(state.authError)+'</div>' : '')+
+      '<form id="auth-form">'+
+        '<div class="field"><label>Email</label><input type="email" name="email" required autocomplete="username" '+(state.authBusy?'disabled':'')+'></div>'+
+        '<div class="field" style="margin-top:12px;"><label>Password</label><input type="password" name="password" required minlength="6" autocomplete="'+(isSignUp?'new-password':'current-password')+'" '+(state.authBusy?'disabled':'')+'></div>'+
+        '<button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; margin-top:18px;" '+(state.authBusy?'disabled':'')+'>'+(state.authBusy? (isSignUp?'Creating…':'Signing in…') : (isSignUp?'Create account':'Sign in'))+'</button>'+
+      '</form>'+
+      '<div class="auth-toggle">'+
+        (isSignUp
+          ? 'Already have an account? <button type="button" data-action="auth-toggle-mode">Sign in</button>'
+          : 'Setting this up for the first time? <button type="button" data-action="auth-toggle-mode">Create an account</button>')+
+      '</div>'+
+    '</div>';
+  var form = document.getElementById('auth-form');
+  if(form){
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      var fd = new FormData(form);
+      var email = (fd.get('email')||'').trim();
+      var password = fd.get('password')||'';
+      if(!email || !password) return;
+      if(state.authMode==='signup') signUp(email, password);
+      else signIn(email, password);
+    });
+  }
+}
+function loadingHTML(){
+  return '<div class="card"><div class="empty" style="padding:40px 20px;"><div class="stat-label">Loading…</div></div></div>';
+}
+
+/* ===================== modals ===================== */
+function closeModal(){
+  document.getElementById('modal-backdrop').hidden = true;
+  document.getElementById('modal-body').innerHTML = '';
+}
+function openModal(html){
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-backdrop').hidden = false;
+  var first = document.querySelector('#modal-body input, #modal-body select, #modal-body textarea');
+  if(first) setTimeout(function(){first.focus();}, 20);
+}
+function openProjectModal(id){
+  var p = id ? projectById(id) : null;
+  var v = p || {name:'', companyProfile:'Not Started', technical:'Not Started', financial:'Not Started', marketing:'Not Started', siteVisit:'Not Completed',
+    companyProfileOwner:'', technicalOwner:'', financialOwner:'', marketingOwner:'', siteVisitOwner:'',
+    companyProfileRemarks:'', technicalRemarks:'', financialRemarks:'', marketingRemarks:'', siteVisitRemarks:'',
+    companyIndustry:'', companyContact:'', companyEmail:'', companyPhone:'', companyLocation:'', companyWebsite:'',
+    lastCommunication:todayStr(), nextAction:'', actionOwner:'us', remarks:''};
+  var hrs = p ? projectMinutes(p.id) : 0;
+  var logCount = p ? state.worklogs.filter(function(w){return w.projectId===p.id;}).length : 0;
+
+  var html =
+    '<div class="modal-head"><h3>'+(p?'Edit project':'New project')+'</h3><div class="spacer"></div>'+
+      (p? '<span class="pill"><span class="dot" style="background:'+statusDot(overallStatus(v))+'"></span>'+overallStatus(v)+'</span>' : '')+
+    '</div>'+
+    '<form id="project-form">'+
+      '<div class="field"><label>Project name</label><input required type="text" id="pf-name" value="'+esc(v.name)+'" placeholder="e.g. Shri Maa Poly Films"></div>'+
+      '<div class="field"><label>Company profile</label><span class="hint" style="display:block; margin:-2px 0 8px;">Background on the client — optional, but handy to have on hand.</span>'+
+        '<div class="field-row">'+
+          '<input type="text" id="pf-co-industry" value="'+esc(v.companyIndustry||'')+'" placeholder="Industry / sector">'+
+          '<input type="text" id="pf-co-contact" value="'+esc(v.companyContact||'')+'" placeholder="Contact person">'+
+        '</div>'+
+        '<div class="field-row" style="margin-top:10px;">'+
+          '<input type="email" id="pf-co-email" value="'+esc(v.companyEmail||'')+'" placeholder="Contact email">'+
+          '<input type="text" id="pf-co-phone" value="'+esc(v.companyPhone||'')+'" placeholder="Contact phone">'+
+        '</div>'+
+        '<div class="field-row" style="margin-top:10px;">'+
+          '<input type="text" id="pf-co-location" value="'+esc(v.companyLocation||'')+'" placeholder="Location">'+
+          '<input type="text" id="pf-co-website" value="'+esc(v.companyWebsite||'')+'" placeholder="Website">'+
+        '</div>'+
+      '</div>'+
+      '<div class="field"><label>Status by dimension</label><span class="hint" style="display:block; margin:-2px 0 8px;">Each section can have its own owner and its own notes.</span><div class="field-row" style="grid-template-columns:1fr 1fr; gap:10px;">'+
+        DIMENSIONS.map(function(d){
+          return '<div><label class="hint">'+d.label+'</label><select id="pf-'+d.key+'">'+d.options.map(function(s){return '<option'+((v[d.key]||d.def)===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
+            '<div style="display:flex; gap:6px; margin-top:6px;"><input type="text" id="pf-'+d.key+'Owner" value="'+esc(v[d.key+'Owner']||'')+'" placeholder="Owner name" style="flex:1;">'+
+              '<button type="button" class="btn btn-sm" data-action="fill-me" data-target="pf-'+d.key+'Owner">Me</button></div>'+
+            '<input type="text" id="pf-'+d.key+'Remarks" value="'+esc(v[d.key+'Remarks']||'')+'" placeholder="Notes for '+d.label+'" style="margin-top:6px;">'+
+          '</div>';
+        }).join('')+
+      '</div></div>'+
+      '<div class="field-row">'+
+        '<div class="field"><label>Last communication</label><input type="date" id="pf-lastcomm" value="'+esc(v.lastCommunication||'')+'"></div>'+
+        '<div class="field"><label>Next move is on</label><select id="pf-owner"><option value="us"'+(v.actionOwner!=='client'?' selected':'')+'>Us</option><option value="client"'+(v.actionOwner==='client'?' selected':'')+'>Client</option></select></div>'+
+      '</div>'+
+      '<div class="field"><label>Next action</label><input type="text" id="pf-nextaction" value="'+esc(v.nextAction||'')+'" placeholder="e.g. Send revised financial model"></div>'+
+      '<div class="field"><label>Remarks</label><textarea id="pf-remarks" placeholder="Context, blockers, anything worth remembering">'+esc(v.remarks||'')+'</textarea></div>'+
+      (p? '<div class="field"><label class="hint">'+logCount+' worklog '+(logCount===1?'entry':'entries')+' · '+fmtHrs(hrs)+' logged</label></div>' : '')+
+      '<div class="modal-actions">'+
+        (p? '<button type="button" class="btn btn-danger" data-action="delete-project" data-id="'+p.id+'">'+iconTrash()+'Delete</button>' : '')+
+        '<div class="spacer"></div>'+
+        '<button type="button" class="btn" data-action="close-modal">Cancel</button>'+
+        '<button type="submit" class="btn btn-primary">'+(p?'Save changes':'Add project')+'</button>'+
+      '</div>'+
+    '</form>';
+  openModal(html);
+  document.getElementById('project-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    var data = {
+      name: document.getElementById('pf-name').value.trim(),
+      lastCommunication: document.getElementById('pf-lastcomm').value,
+      nextAction: document.getElementById('pf-nextaction').value.trim(),
+      actionOwner: document.getElementById('pf-owner').value,
+      remarks: document.getElementById('pf-remarks').value.trim(),
+      companyIndustry: document.getElementById('pf-co-industry').value.trim(),
+      companyContact: document.getElementById('pf-co-contact').value.trim(),
+      companyEmail: document.getElementById('pf-co-email').value.trim(),
+      companyPhone: document.getElementById('pf-co-phone').value.trim(),
+      companyLocation: document.getElementById('pf-co-location').value.trim(),
+      companyWebsite: document.getElementById('pf-co-website').value.trim()
+    };
+    DIMENSIONS.forEach(function(d){
+      data[d.key] = document.getElementById('pf-'+d.key).value;
+      data[d.key+'Owner'] = document.getElementById('pf-'+d.key+'Owner').value.trim();
+      data[d.key+'Remarks'] = document.getElementById('pf-'+d.key+'Remarks').value.trim();
+    });
+    if(!data.name){ toast('Project name is required.'); return; }
+    saveProject(data, p ? p.id : null);
+  });
+}
+function confirmDeleteProject(id){
+  var p = projectById(id);
+  var count = state.worklogs.filter(function(w){return w.projectId===id;}).length;
+  var html =
+    '<div class="modal-head"><h3>Delete "'+esc(p?p.name:'')+'"?</h3></div>'+
+    '<p class="sec">This removes the project from your list'+(count? '. Its '+count+' logged worklog '+(count===1?'entry stays':'entries stay')+' on record, just unlinked.' : '.')+' This can\'t be undone.</p>'+
+    '<div class="modal-actions"><button class="btn" data-action="close-modal">Cancel</button><button class="btn btn-danger" data-action="confirm-delete-project" data-id="'+id+'">'+iconTrash()+'Delete project</button></div>';
+  openModal(html);
+}
+function openLogModal(id, presetProjectId){
+  var w = id ? state.worklogs.filter(function(x){return x.id===id;})[0] : null;
+  var v = w || {projectId: presetProjectId || (state.projects[0]&&state.projects[0].id) || '', date: todayStr(), category:'Technical', particulars:'', startTime:'', endTime:'', durationMinutes:''};
+  var hasTimes = !!(v.startTime && v.endTime);
+  var projOptions = state.projects.map(function(p){return '<option value="'+p.id+'"'+(v.projectId===p.id?' selected':'')+'>'+esc(p.name)+'</option>';}).join('');
+
+  var html =
+    '<div class="modal-head"><h3>'+(w?'Edit entry':'Log time')+'</h3></div>'+
+    '<form id="log-form">'+
+      '<div class="field-row">'+
+        '<div class="field"><label>Project</label><select id="lf-project" required>'+projOptions+'</select></div>'+
+        '<div class="field"><label>Date</label><input required type="date" id="lf-date" value="'+esc(v.date)+'"></div>'+
+      '</div>'+
+      '<div class="field"><label>Category</label><select id="lf-category">'+CATEGORIES.map(function(c){return '<option'+(v.category===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select></div>'+
+      '<div class="field"><label>Particulars</label><input type="text" id="lf-particulars" value="'+esc(v.particulars||'')+'" placeholder="What did you work on?"></div>'+
+      '<div class="field"><label>How to record time</label><div class="radio-row">'+
+        '<label><input type="radio" name="timemode" value="times" '+(hasTimes||!w?'checked':'')+'> Start &amp; end time</label>'+
+        '<label><input type="radio" name="timemode" value="hours" '+(!hasTimes&&w?'checked':'')+'> Total hours</label>'+
+      '</div></div>'+
+      '<div class="field-row" id="lf-times-wrap">'+
+        '<div class="field"><label>Start</label><input type="time" id="lf-start" value="'+esc(v.startTime||'')+'"></div>'+
+        '<div class="field"><label>End</label><input type="time" id="lf-end" value="'+esc(v.endTime||'')+'"></div>'+
+      '</div>'+
+      '<div class="field" id="lf-hours-wrap" hidden><label>Hours</label><input type="number" min="0" step="0.25" id="lf-hours" value="'+(v.durationMinutes?minsToHrs(v.durationMinutes):'')+'"></div>'+
+      '<div class="modal-actions">'+
+        (w? '<button type="button" class="btn btn-danger" data-action="delete-log" data-id="'+w.id+'">'+iconTrash()+'Delete</button>' : '')+
+        '<div class="spacer"></div>'+
+        '<button type="button" class="btn" data-action="close-modal">Cancel</button>'+
+        '<button type="submit" class="btn btn-primary">'+(w?'Save changes':'Add entry')+'</button>'+
+      '</div>'+
+    '</form>';
+  openModal(html);
+
+  function syncMode(){
+    var mode = document.querySelector('input[name=timemode]:checked').value;
+    document.getElementById('lf-times-wrap').hidden = mode!=='times';
+    document.getElementById('lf-hours-wrap').hidden = mode!=='hours';
+  }
+  document.querySelectorAll('input[name=timemode]').forEach(function(r){ r.addEventListener('change', syncMode); });
+  syncMode();
+
+  document.getElementById('log-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    var mode = document.querySelector('input[name=timemode]:checked').value;
+    var durationMinutes, startTime='', endTime='';
+    if(mode==='times'){
+      startTime = document.getElementById('lf-start').value;
+      endTime = document.getElementById('lf-end').value;
+      if(!startTime || !endTime){ toast('Enter both a start and end time, or switch to total hours.'); return; }
+      var sm = toMinutes(startTime), em = toMinutes(endTime);
+      durationMinutes = em>sm ? em-sm : (em+1440-sm);
+      if(durationMinutes<=0){ toast('End time must be after start time.'); return; }
+    } else {
+      var hrs = parseFloat(document.getElementById('lf-hours').value);
+      if(!hrs || hrs<=0){ toast('Enter the hours worked.'); return; }
+      durationMinutes = Math.round(hrs*60);
+    }
+    var data = {
+      projectId: document.getElementById('lf-project').value,
+      date: document.getElementById('lf-date').value,
+      category: document.getElementById('lf-category').value,
+      particulars: document.getElementById('lf-particulars').value.trim(),
+      startTime: startTime, endTime: endTime,
+      durationMinutes: durationMinutes
+    };
+    if(!data.projectId){ toast('Choose a project.'); return; }
+    saveWorklog(data, w ? w.id : null);
+  });
+}
+function toMinutes(hm){ var p=hm.split(':'); return (+p[0])*60+(+p[1]); }
+function confirmDeleteLog(id){
+  var html = '<div class="modal-head"><h3>Delete this entry?</h3></div>'+
+    '<p class="sec">This removes the logged time permanently.</p>'+
+    '<div class="modal-actions"><button class="btn" data-action="close-modal">Cancel</button><button class="btn btn-danger" data-action="confirm-delete-log" data-id="'+id+'">'+iconTrash()+'Delete</button></div>';
+  openModal(html);
+}
+function openSettingsModal(){
+  var sd = state.settings.staleDays||5;
+  var html =
+    '<div class="modal-head"><h3>Settings</h3></div>'+
+    '<form id="settings-form">'+
+      '<div class="field"><label>Follow-up window</label><input type="number" min="1" max="60" id="sf-staledays" value="'+sd+'">'+
+        '<span class="hint">Flag a project when this many days pass with no client communication.</span></div>'+
+      '<div class="modal-actions"><div class="spacer"></div><button type="button" class="btn" data-action="close-modal">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>'+
+    '</form>';
+  openModal(html);
+  document.getElementById('settings-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    var v = clamp(parseInt(document.getElementById('sf-staledays').value,10)||5,1,60);
+    saveSettings(v);
+  });
+}
+function openWhatsAppModal(){
+  var initialDate = latestWorklogDate();
+  var html =
+    '<div class="modal-head"><h3>WhatsApp log</h3></div>'+
+    '<p class="sec" style="margin-bottom:14px;">Turns a day\'s particulars into a plain message you can paste straight into WhatsApp.</p>'+
+    '<div class="field"><label>Date</label><input type="date" id="wa-date" value="'+esc(initialDate)+'"></div>'+
+    '<div class="field"><label>Message</label><textarea id="wa-preview" rows="9" readonly style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; white-space:pre-wrap;">'+esc(buildWhatsAppText(initialDate))+'</textarea></div>'+
+    '<div class="modal-actions">'+
+      '<button type="button" class="btn" data-action="wa-download">'+iconDownload()+'Download .txt</button>'+
+      '<div class="spacer"></div>'+
+      '<button type="button" class="btn" data-action="close-modal">Close</button>'+
+      '<button type="button" class="btn btn-primary" data-action="wa-copy">'+iconCopy()+'Copy to clipboard</button>'+
+    '</div>';
+  openModal(html);
+  document.getElementById('wa-date').addEventListener('change', function(){
+    document.getElementById('wa-preview').value = buildWhatsAppText(this.value);
+  });
+}
+function copyWhatsAppText(){
+  var ta = document.getElementById('wa-preview');
+  var text = ta.value;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ toast('Copied — paste it into WhatsApp.'); }, function(){ fallbackCopy(ta); });
+  } else {
+    fallbackCopy(ta);
+  }
+}
+function fallbackCopy(ta){
+  try{
+    ta.removeAttribute('readonly'); ta.focus(); ta.select();
+    var ok = document.execCommand('copy');
+    ta.setAttribute('readonly','readonly');
+    toast(ok ? 'Copied — paste it into WhatsApp.' : 'Could not copy automatically — select the text above and copy it manually.');
+  }catch(e){ toast('Could not copy automatically — select the text above and copy it manually.'); }
+}
+async function downloadWhatsAppText(){
+  var ta = document.getElementById('wa-preview');
+  var dateStr = document.getElementById('wa-date').value;
+  await doDownload('worklog-'+dateStr+'.txt', ta.value);
+}
+
+/* ===================== event delegation ===================== */
+document.addEventListener('click', function(e){
+  var t = e.target.closest('[data-action]');
+  if(!t) return;
+  var action = t.getAttribute('data-action');
+  var id = t.getAttribute('data-id');
+  switch(action){
+    case 'nav': setView(t.getAttribute('data-view')); break;
+    case 'new-project': openProjectModal(null); break;
+    case 'edit-project': openProjectModal(id); break;
+    case 'delete-project': confirmDeleteProject(id); break;
+    case 'confirm-delete-project': deleteProjectConfirmed(id); break;
+    case 'touch-comm': touchLastComm(id); break;
+    case 'fill-me':
+      var meTarget = document.getElementById(t.getAttribute('data-target'));
+      if(meTarget) meTarget.value = 'Raj';
+      break;
+    case 'new-log': openLogModal(null); break;
+    case 'edit-log': openLogModal(id); break;
+    case 'delete-log': confirmDeleteLog(id); break;
+    case 'confirm-delete-log': deleteWorklogConfirmed(id); break;
+    case 'start-timer':
+      var pid = document.getElementById('timer-project').value;
+      var cat = document.getElementById('timer-category').value;
+      var part = document.getElementById('timer-particulars').value;
+      beginTimer(pid, cat, part);
+      break;
+    case 'stop-timer': endTimer(); break;
+    case 'open-settings': openSettingsModal(); break;
+    case 'open-whatsapp': openWhatsAppModal(); break;
+    case 'wa-copy': copyWhatsAppText(); break;
+    case 'wa-download': downloadWhatsAppText(); break;
+    case 'export-projects': exportProjectsCSV(); break;
+    case 'export-worklog': exportWorklogCSV(); break;
+    case 'close-modal': closeModal(); break;
+    case 'reload-data': reloadData(); break;
+    case 'sign-out': signOut(); break;
+    case 'auth-toggle-mode':
+      state.authMode = (state.authMode==='signup') ? 'signin' : 'signup';
+      state.authError = '';
+      render();
+      break;
+    case 'filter-status': state.statusFilter = t.getAttribute('data-status'); render(); break;
+  }
+});
+document.addEventListener('input', function(e){
+  if(e.target.matches('[data-action=search-projects]')){ state.search = e.target.value; renderProjectsOnly(); }
+});
+document.addEventListener('change', function(e){
+  if(e.target.matches('[data-action=filter-log-project]')){ state.logFilterProject = e.target.value; render(); }
+});
+document.getElementById('modal-backdrop').addEventListener('click', function(e){
+  if(e.target.id==='modal-backdrop') closeModal();
+});
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape') closeModal();
+});
+function renderProjectsOnly(){
+  // full re-render replaces the search input, so restore focus + caret position after
+  if(state.view!=='projects') return;
+  renderProjects();
+  var input = document.querySelector('[data-action=search-projects]');
+  if(input){ input.focus(); var len=input.value.length; input.setSelectionRange(len,len); }
+}
+
+/* ===================== master render ===================== */
+function render(){
+  var showAuthRoot = !sb || (state.authChecked && !state.session);
+  document.getElementById('auth-root').hidden = !showAuthRoot;
+  document.getElementById('app-root').hidden = showAuthRoot;
+  if(showAuthRoot){ renderAuthScreen(); return; }
+  renderNav();
+  renderDashboard();
+  renderProjects();
+  renderWorklog();
+  renderAnalytics();
+}
+
+/* ===================== boot ===================== */
+render();
+loadTimer();
+initCapabilities();
+
+})();
+</script>
+</body>
+</html>

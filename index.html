@@ -277,6 +277,15 @@ fieldset{border:none; padding:0; margin:0;}
 .auth-error{background:color-mix(in srgb, var(--critical) 10%, transparent); border:1px solid var(--critical); color:var(--critical); font-size:12.5px; font-weight:600; padding:8px 10px; border-radius:var(--radius-sm); margin-bottom:14px;}
 .auth-toggle{text-align:center; margin-top:16px; font-size:12.5px; color:var(--text-secondary);}
 .auth-toggle button{background:none; border:none; color:var(--accent); font-weight:700; cursor:pointer; font-size:12.5px; padding:0;}
+
+/* ---------- Notes tab ---------- */
+.notes-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px;}
+.note-block{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; min-width:0;}
+.note-block-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; flex-wrap:wrap;}
+.note-block-body{font-size:12.5px; color:var(--text-secondary); white-space:pre-wrap; line-height:1.5; word-break:break-word;}
+.note-card{margin-bottom:14px;}
+.note-card-head{display:flex; align-items:center; gap:10px; margin:0 0 12px; flex-wrap:wrap;}
+.note-card-head h2{font-size:15px;}
 </style>
 </head>
 <body>
@@ -294,6 +303,7 @@ fieldset{border:none; padding:0; margin:0;}
 
       <section class="view" id="view-dashboard"></section>
       <section class="view" id="view-projects" hidden></section>
+      <section class="view" id="view-notes" hidden></section>
       <section class="view" id="view-worklog" hidden></section>
       <section class="view" id="view-analytics" hidden></section>
     </main>
@@ -345,6 +355,9 @@ var DIMENSIONS = [
   {key:'siteVisit', label:'Site Visit', short:'Site', options:SITE_VISIT_OPTIONS, def:'Not Completed'}
 ];
 function dimDef(key){ for(var i=0;i<DIMENSIONS.length;i++) if(DIMENSIONS[i].key===key) return DIMENSIONS[i].def; return 'Not Started'; }
+var REMARKS_FIELDS = [{key:'remarks', label:'General remarks'}].concat(
+  DIMENSIONS.map(function(d){ return {key:d.key+'Remarks', label:d.label+' notes'}; })
+);
 var CATEGORIES = ['Company Profile','Technical','Financial','Marketing','Site Visit','Other'];
 var CATEGORY_VAR = {
   'Company Profile':'--cat-companyprofile','Technical':'--cat-technical','Financial':'--cat-financial','Marketing':'--cat-marketing',
@@ -353,6 +366,7 @@ var CATEGORY_VAR = {
 var NAV_ITEMS = [
   {key:'dashboard', label:'Dashboard', icon:iconHome},
   {key:'projects', label:'Projects', icon:iconFolder},
+  {key:'notes', label:'Notes', icon:iconNotes},
   {key:'worklog', label:'Worklog', icon:iconClock},
   {key:'analytics', label:'Analytics', icon:iconChart}
 ];
@@ -370,6 +384,7 @@ var state = {
   search: '',
   statusFilter: 'all',
   logFilterProject: 'all',
+  notesSearch: '',
   timer: null,     // {projectId, category, particulars, startedAt}
   timerTick: 0,
   session: null,       // Supabase auth session, or null if signed out — display only for now
@@ -398,6 +413,8 @@ function iconInbox(){return '<svg viewBox="0 0 24 24" fill="none" stroke="curren
 function iconMessage(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>';}
 function iconCopy(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';}
 function iconLogout(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>';}
+function iconNotes(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l5 5v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M9 12h6M9 16h6M9 8h2"/></svg>';}
+function iconFile(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M13 2v6h6"/></svg>';}
 
 /* ===================== utils ===================== */
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -408,6 +425,7 @@ function parseDateLocal(s){ if(!s) return null; var parts=s.split('-'); return n
 function fmtDate(s){ var d=parseDateLocal(s); if(!d) return '—'; return d.toLocaleDateString(undefined,{month:'short', day:'numeric'}); }
 function fmtDateFull(s){ var d=parseDateLocal(s); if(!d) return '—'; return d.toLocaleDateString(undefined,{month:'short', day:'numeric', year:'numeric'}); }
 function fmtDateDDMMYYYY(s){ var d=parseDateLocal(s); if(!d) return s||''; return String(d.getDate()).padStart(2,'0')+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+d.getFullYear(); }
+function fmtDateTime(iso){ var d=new Date(iso); if(isNaN(d.getTime())) return iso||''; return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+', '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}); }
 function latestWorklogDate(){
   var max=null; state.worklogs.forEach(function(w){ if(w.date && (!max || w.date>max)) max=w.date; });
   return max || todayStr();
@@ -778,13 +796,32 @@ function fmtTimeHM(d){ return String(d.getHours()).padStart(2,'0')+':'+String(d.
 /* ===================== CRUD =====================
    Every change here mutates local state directly, re-renders, and
    saves the whole thing to localStorage (see persistData above). */
+// Every time a remarks/notes field's text actually changes, append a
+// dated entry to the project's remarksLog instead of just silently
+// overwriting the old text — so past notes stay visible, not lost.
+function logRemarksChanges(existing, data){
+  if(!Array.isArray(existing.remarksLog)) existing.remarksLog = [];
+  REMARKS_FIELDS.forEach(function(f){
+    var before = (existing[f.key]||'').trim();
+    var after = (data[f.key]||'').trim();
+    // Only log when there was something there before, and it actually
+    // changed — this records what the note used to say, right before
+    // being overwritten, so it isn't just lost when you edit it.
+    if(before && before !== after){
+      existing.remarksLog.push({id:newId(), field:f.key, fieldLabel:f.label, text:before, at:nowISO()});
+    }
+  });
+}
 function saveProject(data, id){
   if(id){
     var existing = projectById(id);
-    if(existing) Object.assign(existing, data, {updatedAt:nowISO()});
+    if(existing){
+      logRemarksChanges(existing, data);
+      Object.assign(existing, data, {updatedAt:nowISO()});
+    }
     toast('Project updated.');
   } else {
-    var row = Object.assign({id:newId(), createdAt:nowISO(), updatedAt:nowISO()}, data);
+    var row = Object.assign({id:newId(), createdAt:nowISO(), updatedAt:nowISO(), remarksLog:[]}, data);
     state.projects.push(row);
     state.projectsLoaded = true;
     toast('Project added.');
@@ -800,7 +837,9 @@ function deleteProjectConfirmed(id){
 }
 function touchLastComm(id){
   var existing = projectById(id);
-  if(existing) Object.assign(existing, {lastCommunication: todayStr(), updatedAt: nowISO()});
+  // Marking contacted resolves both the general staleness clock AND
+  // any specific "follow up on X" reminder that was set for this project.
+  if(existing) Object.assign(existing, {lastCommunication: todayStr(), followUpOn:'', updatedAt: nowISO()});
   toast('Marked as contacted today.'); render();
   persistData();
 }
@@ -842,7 +881,7 @@ async function exportProjectsCSV(){
     'Marketing','Marketing Owner','Marketing Notes',
     'Site Visit','Site Visit Owner','Site Visit Notes',
     'Industry','Contact Person','Contact Email','Contact Phone','Location','Website',
-    'Last Communication','Days Since Contact','Next Action','Next Move Owner','Total Hours','Remarks']];
+    'Last Communication','Days Since Contact','Follow Up On','Next Action','Next Move Owner','Total Hours','Remarks']];
   state.projects.forEach(function(p){
     rows.push([p.name, overallStatus(p),
       p.companyProfile||'', p.companyProfileOwner||'', p.companyProfileRemarks||'',
@@ -851,7 +890,7 @@ async function exportProjectsCSV(){
       p.marketing||'', p.marketingOwner||'', p.marketingRemarks||'',
       p.siteVisit||'', p.siteVisitOwner||'', p.siteVisitRemarks||'',
       p.companyIndustry||'', p.companyContact||'', p.companyEmail||'', p.companyPhone||'', p.companyLocation||'', p.companyWebsite||'',
-      p.lastCommunication||'', daysSince(p.lastCommunication), p.nextAction||'', p.actionOwner==='client'?'Client':'Us',
+      p.lastCommunication||'', daysSince(p.lastCommunication), p.followUpOn||'', p.nextAction||'', p.actionOwner==='client'?'Client':'Us',
       minsToHrs(projectMinutes(p.id)), p.remarks||'']);
   });
   var csv = rows.map(function(r){return r.map(csvEscape).join(',');}).join('\r\n');
@@ -907,7 +946,7 @@ function renderNav(){
     '</div>';
   document.getElementById('bottomnav').innerHTML = NAV_ITEMS.map(function(n){return itemHTML(n, true);}).join('');
 
-  var titles = {dashboard:'Dashboard', projects:'Projects', worklog:'Worklog', analytics:'Analytics'};
+  var titles = {dashboard:'Dashboard', projects:'Projects', notes:'Notes', worklog:'Worklog', analytics:'Analytics'};
   document.getElementById('view-title').textContent = titles[state.view] || 'Relay';
 
   var actions = document.getElementById('topbar-actions');
@@ -919,17 +958,31 @@ function renderNav(){
     actions.innerHTML = '';
   }
 
-  ['view-dashboard','view-projects','view-worklog','view-analytics'].forEach(function(id){
+  ['view-dashboard','view-projects','view-notes','view-worklog','view-analytics'].forEach(function(id){
     document.getElementById(id).hidden = (id !== 'view-'+state.view);
   });
 }
 
 /* ===================== follow-ups ===================== */
+// A project needs follow-up either because it's gone stale (no contact
+// within the general window) or because it has its own specific
+// "follow up on X" date that's arrived or passed — whichever applies.
+function isFollowUpDue(p){
+  var today = todayStr();
+  return !!(p.followUpOn && p.followUpOn <= today);
+}
 function computeFollowups(){
   var sd = state.settings.staleDays||5;
   return state.projects.filter(function(p){
-    return overallStatus(p)!=='Completed' && daysSince(p.lastCommunication)!==null && daysSince(p.lastCommunication) > sd;
-  }).sort(function(a,b){ return daysSince(b.lastCommunication)-daysSince(a.lastCommunication); });
+    if(overallStatus(p)==='Completed') return false;
+    var stale = daysSince(p.lastCommunication)!==null && daysSince(p.lastCommunication) > sd;
+    return stale || isFollowUpDue(p);
+  }).sort(function(a,b){
+    var aDue = isFollowUpDue(a), bDue = isFollowUpDue(b);
+    if(aDue && bDue) return a.followUpOn.localeCompare(b.followUpOn); // earliest due date first
+    if(aDue!==bDue) return aDue ? -1 : 1; // due-by-date projects surface first
+    return daysSince(b.lastCommunication)-daysSince(a.lastCommunication);
+  });
 }
 
 /* ===================== dashboard ===================== */
@@ -976,12 +1029,15 @@ function followupsCardHTML(list){
   if(!list.length){
     return '<div class="card"><div class="empty" style="padding:30px 20px;">'+iconCheck()+'<h3>You\'re all caught up</h3><p>No client is waiting past your follow-up window right now.</p></div></div>';
   }
+  var today = todayStr();
   return '<div class="card">'+ list.map(function(p){
     var d = daysSince(p.lastCommunication);
+    var dateDue = isFollowUpDue(p);
+    var badge = dateDue ? (p.followUpOn===today ? 'Today' : 'Overdue') : (d+'d');
     return '<div class="followup">'+
-      '<span class="pill"><span class="dot" style="background:var(--critical)"></span>'+d+'d</span>'+
+      '<span class="pill"><span class="dot" style="background:var(--critical)"></span>'+esc(badge)+'</span>'+
       '<div class="fu-main"><div class="fu-name">'+esc(p.name)+'</div>'+
-        '<div class="fu-sub">'+(p.nextAction? esc(p.nextAction) : 'No next action noted')+' · '+(p.actionOwner==='client'?'Client owes reply':'You owe next move')+'</div>'+
+        '<div class="fu-sub">'+(p.nextAction? esc(p.nextAction) : 'No next action noted')+' · '+(p.actionOwner==='client'?'Client owes reply':'You owe next move')+(dateDue? ' · Follow-up set for '+fmtDate(p.followUpOn) : '')+'</div>'+
       '</div>'+
       '<button class="btn btn-sm" data-action="touch-comm" data-id="'+p.id+'">Mark contacted</button>'+
       '<button class="icon-btn" data-action="edit-project" data-id="'+p.id+'" data-tip="Edit project">'+iconEdit()+'</button>'+
@@ -1053,12 +1109,193 @@ function projectsTableHTML(list){
       '<td class="trunc" data-tip="'+esc(p.nextAction||'')+'">'+(p.nextAction? esc(p.nextAction): '<span class="muted">—</span>')+'</td>'+
       '<td><span class="pill"><span class="dot" style="background:'+(p.actionOwner==='client'?'var(--owner-client)':'var(--owner-us)')+'"></span>'+(p.actionOwner==='client'?'Client':'Us')+'</span></td>'+
       '<td class="num">'+fmtHrs(projectMinutes(p.id))+'</td>'+
-      '<td onclick="event.stopPropagation()"><button class="icon-btn" data-action="delete-project" data-id="'+p.id+'" data-tip="Delete">'+iconTrash()+'</button></td>'+
+      '<td onclick="event.stopPropagation()">'+
+        '<button class="icon-btn" data-action="open-documents" data-id="'+p.id+'" data-tip="Documents">'+iconFile()+'</button>'+
+        '<button class="icon-btn" data-action="delete-project" data-id="'+p.id+'" data-tip="Delete">'+iconTrash()+'</button>'+
+      '</td>'+
     '</tr>';
   }).join('');
   return '<div class="table-wrap"><table><thead><tr>'+
     '<th>Project</th><th>Status</th><th>Dimensions</th><th>Last contact</th><th>Next action</th><th>Owner</th><th>Hours</th><th></th>'+
     '</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+
+/* ===================== notes tab (per-company remarks, handy reference) =====================
+   A read-focused view: every project's 5 section notes plus its general
+   remarks, laid out so they can be scanned/searched without opening the
+   edit modal for each one. Also surfaces the Documents feature below —
+   each card shows a quick Pending/Received summary with a shortcut into
+   the full Documents modal. */
+function renderNotes(){
+  var el = document.getElementById('view-notes');
+  if(!state.ready){ el.innerHTML = loadingHTML(); return; }
+  if(!state.dbAvailable){ el.innerHTML = dbUnavailableHTML(); return; }
+  if(!state.projectsLoaded){ el.innerHTML = loadingHTML(); return; }
+  if(!state.projects.length){
+    el.innerHTML = emptyHTML(iconNotes(), 'Nothing to reference yet', 'Add a project and its section notes will show up here, grouped by company, for quick lookup.', 'new-project', 'Add your first project');
+    return;
+  }
+  var q = (state.notesSearch||'').trim().toLowerCase();
+  var filtered = state.projects.filter(function(p){
+    if(!q) return true;
+    if((p.name||'').toLowerCase().indexOf(q)>-1) return true;
+    if((p.remarks||'').toLowerCase().indexOf(q)>-1) return true;
+    if(DIMENSIONS.some(function(d){ return (p[d.key+'Remarks']||'').toLowerCase().indexOf(q)>-1; })) return true;
+    if(projDocsList(p,'documentsPending').some(function(d){ return d.name.toLowerCase().indexOf(q)>-1; })) return true;
+    if(projDocsList(p,'documentsReceived').some(function(d){ return d.name.toLowerCase().indexOf(q)>-1; })) return true;
+    if((p.remarksLog||[]).some(function(entry){ return (entry.text||'').toLowerCase().indexOf(q)>-1; })) return true;
+    return false;
+  }).sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+
+  el.innerHTML =
+    '<div class="section-head" style="margin-top:0;">'+
+      '<input type="search" placeholder="Search company or notes…" value="'+esc(state.notesSearch||'')+'" data-action="search-notes" style="max-width:280px;">'+
+    '</div>'+
+    (filtered.length ? filtered.map(notesCardHTML).join('') : '<div class="card"><div class="empty">'+iconNotes()+'<h3>No matches</h3><p>Try a different search term.</p></div></div>');
+}
+function notesCardHTML(p){
+  var st = overallStatus(p);
+  var dimBlocks = DIMENSIONS.map(function(d){
+    var val = p[d.key]||d.def;
+    var owner = p[d.key+'Owner'];
+    var remarks = (p[d.key+'Remarks']||'').trim();
+    return '<div class="note-block">'+
+      '<div class="note-block-head"><span class="pill"><span class="dot" style="background:'+statusDot(val)+'"></span>'+esc(d.label)+'</span>'+
+        (owner? '<span class="muted" style="font-size:11px;">Owner: '+esc(owner)+'</span>' : '')+
+      '</div>'+
+      '<div class="note-block-body">'+(remarks? esc(remarks) : '<span class="muted">No notes</span>')+'</div>'+
+    '</div>';
+  }).join('');
+  var pending = projDocsList(p,'documentsPending');
+  var received = projDocsList(p,'documentsReceived');
+  var log = (p.remarksLog||[]).slice().sort(function(a,b){ return (b.at||'').localeCompare(a.at||''); });
+  var logHTML = !log.length ? '' :
+    '<div class="note-block-head" style="margin-top:14px;"><span class="pill"><span class="dot" style="background:var(--text-muted)"></span>Remarks history</span><span class="muted" style="font-size:11px;">'+log.length+' entr'+(log.length===1?'y':'ies')+'</span></div>'+
+    '<div class="note-block" style="max-height:220px; overflow-y:auto;">'+
+      log.map(function(entry){
+        return '<div style="padding:6px 0; border-bottom:1px solid var(--border);">'+
+          '<div style="display:flex; justify-content:space-between; gap:8px; font-size:11px; color:var(--text-muted); font-weight:700;">'+
+            '<span>'+esc(entry.fieldLabel||entry.field)+'</span><span>'+esc(fmtDateTime(entry.at))+'</span>'+
+          '</div>'+
+          '<div style="font-size:12.5px; color:var(--text-secondary); margin-top:2px; white-space:pre-wrap;">'+(entry.text? esc(entry.text) : '<span class="muted">(cleared)</span>')+'</div>'+
+        '</div>';
+      }).join('')+
+    '</div>';
+  return '<div class="card card-pad note-card">'+
+    '<div class="note-card-head">'+
+      '<h2>'+esc(p.name)+'</h2>'+
+      '<span class="pill"><span class="dot" style="background:'+statusDot(st)+'"></span>'+esc(st)+'</span>'+
+      '<div class="spacer"></div>'+
+      '<button class="icon-btn" data-action="open-documents" data-id="'+p.id+'" data-tip="Documents">'+iconFile()+'</button>'+
+      '<button class="icon-btn" data-action="edit-project" data-id="'+p.id+'" data-tip="Edit project">'+iconEdit()+'</button>'+
+    '</div>'+
+    '<div class="notes-grid">'+dimBlocks+'</div>'+
+    (p.remarks? '<div class="note-block" style="margin-top:10px;"><div class="note-block-head"><span class="pill"><span class="dot" style="background:var(--text-muted)"></span>General remarks</span></div><div class="note-block-body">'+esc(p.remarks)+'</div></div>' : '')+
+    '<div class="note-block-head" style="margin-top:14px;"><span class="pill"><span class="dot" style="background:var(--text-muted)"></span>Documents</span></div>'+
+    '<div class="notes-grid">'+
+      '<div class="note-block"><div class="note-block-head"><b style="font-size:12px;">Pending ('+pending.length+')</b></div>'+
+        '<div class="note-block-body">'+(pending.length? pending.map(function(d){return esc(d.name);}).join('<br>') : '<span class="muted">None</span>')+'</div></div>'+
+      '<div class="note-block"><div class="note-block-head"><b style="font-size:12px;">Received ('+received.length+')</b></div>'+
+        '<div class="note-block-body">'+(received.length? received.map(function(d){return esc(d.name);}).join('<br>') : '<span class="muted">None</span>')+'</div></div>'+
+    '</div>'+
+    logHTML+
+  '</div>';
+}
+function renderNotesOnly(){
+  if(state.view!=='notes') return;
+  renderNotes();
+  var input = document.querySelector('[data-action=search-notes]');
+  if(input){ input.focus(); var len=input.value.length; input.setSelectionRange(len,len); }
+}
+
+/* ===================== documents (per-company: provided vs pending) =====================
+   Two small lists per project — documents already received from the
+   client, and documents still pending from them — stored right on the
+   project object (documentsReceived/documentsPending arrays), so they
+   ride along with everything else that's already synced to Supabase.
+   No new table, no new setup step. */
+function projDocsList(p, kind){ return (p && Array.isArray(p[kind])) ? p[kind] : []; }
+function addDocument(projectId, kind, name){
+  name = (name||'').trim();
+  if(!name) return;
+  var p = projectById(projectId);
+  if(!p) return;
+  if(!Array.isArray(p[kind])) p[kind] = [];
+  p[kind].push({id:newId(), name:name, addedAt: nowISO()});
+  p.updatedAt = nowISO();
+  persistData();
+  renderDocumentsModalBody(projectId);
+  renderNotes();
+  renderProjects();
+}
+function removeDocument(projectId, kind, docId){
+  var p = projectById(projectId);
+  if(!p || !Array.isArray(p[kind])) return;
+  p[kind] = p[kind].filter(function(d){ return d.id!==docId; });
+  p.updatedAt = nowISO();
+  persistData();
+  renderDocumentsModalBody(projectId);
+  renderNotes();
+  renderProjects();
+}
+function moveDocument(projectId, docId, fromKind, toKind){
+  var p = projectById(projectId);
+  if(!p || !Array.isArray(p[fromKind])) return;
+  var idx = -1;
+  for(var i=0;i<p[fromKind].length;i++){ if(p[fromKind][i].id===docId){ idx=i; break; } }
+  if(idx===-1) return;
+  var doc = p[fromKind].splice(idx,1)[0];
+  if(!Array.isArray(p[toKind])) p[toKind] = [];
+  doc.addedAt = nowISO();
+  p[toKind].push(doc);
+  p.updatedAt = nowISO();
+  persistData();
+  renderDocumentsModalBody(projectId);
+  renderNotes();
+  renderProjects();
+}
+function openDocumentsModal(id){
+  renderDocumentsModalBody(id);
+}
+function renderDocumentsModalBody(id){
+  var p = projectById(id);
+  if(!p){ closeModal(); return; }
+  var pending = projDocsList(p,'documentsPending');
+  var received = projDocsList(p,'documentsReceived');
+  function listHTML(list, kind, moveToKind, moveLabel){
+    if(!list.length) return '<div class="muted" style="font-size:12.5px; padding:6px 2px;">None yet.</div>';
+    return list.map(function(d){
+      return '<div class="followup" style="padding:8px 2px;">'+
+        '<div class="fu-main"><div class="fu-name" style="font-size:13px; font-weight:600;">'+esc(d.name)+'</div></div>'+
+        (moveToKind? '<button class="btn btn-sm" data-action="move-document" data-project="'+p.id+'" data-doc="'+d.id+'" data-from="'+kind+'" data-to="'+moveToKind+'">'+esc(moveLabel)+'</button>' : '')+
+        '<button class="icon-btn" data-action="remove-document" data-project="'+p.id+'" data-doc="'+d.id+'" data-kind="'+kind+'" data-tip="Remove">'+iconTrash()+'</button>'+
+      '</div>';
+    }).join('');
+  }
+  var html =
+    '<div class="modal-head"><h3>Documents — '+esc(p.name)+'</h3></div>'+
+    '<div class="field"><label>Pending from client</label>'+
+      '<div class="card" style="padding:2px 12px;">'+listHTML(pending,'documentsPending','documentsReceived','Mark received')+'</div>'+
+      '<div style="display:flex; gap:8px; margin-top:8px;"><input type="text" id="doc-pending-input" placeholder="e.g. GST certificate"><button type="button" class="btn btn-sm" id="doc-pending-add">'+iconPlus()+'Add</button></div>'+
+    '</div>'+
+    '<div class="field" style="margin-top:14px;"><label>Received from client</label>'+
+      '<div class="card" style="padding:2px 12px;">'+listHTML(received,'documentsReceived','documentsPending','Mark pending')+'</div>'+
+      '<div style="display:flex; gap:8px; margin-top:8px;"><input type="text" id="doc-received-input" placeholder="e.g. Signed contract"><button type="button" class="btn btn-sm" id="doc-received-add">'+iconPlus()+'Add</button></div>'+
+    '</div>'+
+    '<div class="modal-actions"><div class="spacer"></div><button type="button" class="btn" data-action="close-modal">Done</button></div>';
+  openModal(html);
+  document.getElementById('doc-pending-input').style.flex = '1';
+  document.getElementById('doc-received-input').style.flex = '1';
+
+  function wireAdd(inputId, btnId, kind){
+    var inputEl = document.getElementById(inputId);
+    var btnEl = document.getElementById(btnId);
+    function go(){ addDocument(p.id, kind, inputEl.value); }
+    if(btnEl) btnEl.addEventListener('click', go);
+    if(inputEl) inputEl.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); go(); } });
+  }
+  wireAdd('doc-pending-input','doc-pending-add','documentsPending');
+  wireAdd('doc-received-input','doc-received-add','documentsReceived');
 }
 
 /* ===================== worklog view ===================== */
@@ -1215,12 +1452,13 @@ function openProjectModal(id){
     companyProfileOwner:'', technicalOwner:'', financialOwner:'', marketingOwner:'', siteVisitOwner:'',
     companyProfileRemarks:'', technicalRemarks:'', financialRemarks:'', marketingRemarks:'', siteVisitRemarks:'',
     companyIndustry:'', companyContact:'', companyEmail:'', companyPhone:'', companyLocation:'', companyWebsite:'',
-    lastCommunication:todayStr(), nextAction:'', actionOwner:'us', remarks:''};
+    lastCommunication:todayStr(), nextAction:'', actionOwner:'us', remarks:'', followUpOn:''};
   var hrs = p ? projectMinutes(p.id) : 0;
   var logCount = p ? state.worklogs.filter(function(w){return w.projectId===p.id;}).length : 0;
 
   var html =
     '<div class="modal-head"><h3>'+(p?'Edit project':'New project')+'</h3><div class="spacer"></div>'+
+      (p? '<button type="button" class="icon-btn" data-action="open-documents" data-id="'+p.id+'" data-tip="Documents">'+iconFile()+'</button>' : '')+
       (p? '<span class="pill"><span class="dot" style="background:'+statusDot(overallStatus(v))+'"></span>'+overallStatus(v)+'</span>' : '')+
     '</div>'+
     '<form id="project-form">'+
@@ -1253,6 +1491,7 @@ function openProjectModal(id){
         '<div class="field"><label>Next move is on</label><select id="pf-owner"><option value="us"'+(v.actionOwner!=='client'?' selected':'')+'>Us</option><option value="client"'+(v.actionOwner==='client'?' selected':'')+'>Client</option></select></div>'+
       '</div>'+
       '<div class="field"><label>Next action</label><input type="text" id="pf-nextaction" value="'+esc(v.nextAction||'')+'" placeholder="e.g. Send revised financial model"></div>'+
+      '<div class="field"><label>Follow up on</label><input type="date" id="pf-followupon" value="'+esc(v.followUpOn||'')+'"><span class="hint" style="display:block; margin-top:4px;">Optional — set a specific date to be reminded, separate from the general '+(state.settings.staleDays||5)+'-day staleness window.</span></div>'+
       '<div class="field"><label>Remarks</label><textarea id="pf-remarks" placeholder="Context, blockers, anything worth remembering">'+esc(v.remarks||'')+'</textarea></div>'+
       (p? '<div class="field"><label class="hint">'+logCount+' worklog '+(logCount===1?'entry':'entries')+' · '+fmtHrs(hrs)+' logged</label></div>' : '')+
       '<div class="modal-actions">'+
@@ -1269,6 +1508,7 @@ function openProjectModal(id){
       name: document.getElementById('pf-name').value.trim(),
       lastCommunication: document.getElementById('pf-lastcomm').value,
       nextAction: document.getElementById('pf-nextaction').value.trim(),
+      followUpOn: document.getElementById('pf-followupon').value,
       actionOwner: document.getElementById('pf-owner').value,
       remarks: document.getElementById('pf-remarks').value.trim(),
       companyIndustry: document.getElementById('pf-co-industry').value.trim(),
@@ -1472,10 +1712,18 @@ document.addEventListener('click', function(e){
       renderLoginModalBody();
       break;
     case 'filter-status': state.statusFilter = t.getAttribute('data-status'); render(); break;
+    case 'open-documents': openDocumentsModal(id); break;
+    case 'remove-document':
+      removeDocument(t.getAttribute('data-project'), t.getAttribute('data-kind'), t.getAttribute('data-doc'));
+      break;
+    case 'move-document':
+      moveDocument(t.getAttribute('data-project'), t.getAttribute('data-doc'), t.getAttribute('data-from'), t.getAttribute('data-to'));
+      break;
   }
 });
 document.addEventListener('input', function(e){
   if(e.target.matches('[data-action=search-projects]')){ state.search = e.target.value; renderProjectsOnly(); }
+  if(e.target.matches('[data-action=search-notes]')){ state.notesSearch = e.target.value; renderNotesOnly(); }
 });
 document.addEventListener('change', function(e){
   if(e.target.matches('[data-action=filter-log-project]')){ state.logFilterProject = e.target.value; render(); }
@@ -1499,6 +1747,7 @@ function render(){
   renderNav();
   renderDashboard();
   renderProjects();
+  renderNotes();
   renderWorklog();
   renderAnalytics();
   renderAuthWidget();

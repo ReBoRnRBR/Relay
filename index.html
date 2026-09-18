@@ -418,16 +418,25 @@ function buildWhatsAppText(dateStr){
       if(a.startTime && b.startTime) return a.startTime.localeCompare(b.startTime);
       return (a.createdAt||'').localeCompare(b.createdAt||'');
     });
-  var header = 'Work log on '+fmtDateDDMMYYYY(dateStr);
+  var header = 'Work log '+fmtDateDDMMYYYY(dateStr);
   if(!entries.length) return header+'\n(No entries logged for this day.)';
-  var lines = entries.map(function(w){
+
+  // Group entries by company/project (in the order each first appears
+  // that day) so the name is stated once, not repeated on every line.
+  var order = [];
+  var groups = {};
+  entries.forEach(function(w){
     var company = (w.projectName||'Unknown project').trim();
+    if(!groups[company]){ groups[company] = []; order.push(company); }
     var task = (w.particulars||'').trim();
     if(!task) task = w.category || 'Work';
     if(!/[.!?]$/.test(task)) task += '.';
-    return company+' — '+task;
+    groups[company].push(task);
   });
-  return header+'\n'+lines.join('\n');
+  var blocks = order.map(function(company){
+    return company+'\n'+groups[company].map(function(t){ return '- '+t; }).join('\n');
+  });
+  return header+'\n\n'+blocks.join('\n\n');
 }
 function daysSince(dateStr){ if(!dateStr) return null; var d=parseDateLocal(dateStr); var today=new Date(); d.setHours(0,0,0,0); today.setHours(0,0,0,0); return Math.round((today-d)/86400000); }
 function minsToHrs(m){ return (Math.round((m||0)/6)/10); }

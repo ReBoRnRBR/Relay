@@ -16,7 +16,7 @@ html,body{margin:0; padding:0;}
   --gridline:#e1e0d9; --baseline:#c3c2b7;
   --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
   --cat-companyprofile:#008300; --cat-technical:#2a78d6; --cat-financial:#eb6834; --cat-marketing:#1baf7a; --cat-sitevisit:#eda100; --cat-other:#e87ba4;
-  --owner-us:#2a78d6; --owner-client:#4a3aa7;
+  --owner-us:#2a78d6; --owner-client:#4a3aa7; --owner-both:#af8a1f;
   --radius-sm:6px; --radius-md:10px; --radius-lg:16px;
   --shadow-card:0 1px 2px rgba(11,11,11,.06),0 1px 1px rgba(11,11,11,.04);
   --shadow-modal:0 20px 60px rgba(11,11,11,.25);
@@ -30,7 +30,7 @@ html,body{margin:0; padding:0;}
     --accent:#3987e5; --accent-ink:#ffffff;
     --gridline:#2c2c2a; --baseline:#383835;
     --cat-companyprofile:#008300; --cat-technical:#3987e5; --cat-financial:#d95926; --cat-marketing:#199e70; --cat-sitevisit:#c98500; --cat-other:#d55181;
-    --owner-us:#3987e5; --owner-client:#9085e9;
+    --owner-us:#3987e5; --owner-client:#9085e9; --owner-both:#d1a63a;
     --shadow-card:0 1px 2px rgba(0,0,0,.4),0 1px 1px rgba(0,0,0,.3);
     --shadow-modal:0 20px 60px rgba(0,0,0,.6);
     color-scheme:dark;
@@ -43,7 +43,7 @@ html,body{margin:0; padding:0;}
   --accent:#3987e5; --accent-ink:#ffffff;
   --gridline:#2c2c2a; --baseline:#383835;
   --cat-companyprofile:#008300; --cat-technical:#3987e5; --cat-financial:#d95926; --cat-marketing:#199e70; --cat-sitevisit:#c98500; --cat-other:#d55181;
-  --owner-us:#3987e5; --owner-client:#9085e9;
+  --owner-us:#3987e5; --owner-client:#9085e9; --owner-both:#d1a63a;
   --shadow-card:0 1px 2px rgba(0,0,0,.4),0 1px 1px rgba(0,0,0,.3);
   --shadow-modal:0 20px 60px rgba(0,0,0,.6);
   color-scheme:dark;
@@ -355,9 +355,54 @@ var DIMENSIONS = [
   {key:'siteVisit', label:'Site Visit', short:'Site', options:SITE_VISIT_OPTIONS, def:'Not Completed'}
 ];
 function dimDef(key){ for(var i=0;i<DIMENSIONS.length;i++) if(DIMENSIONS[i].key===key) return DIMENSIONS[i].def; return 'Not Started'; }
-var REMARKS_FIELDS = [{key:'remarks', label:'General remarks'}].concat(
-  DIMENSIONS.map(function(d){ return {key:d.key+'Remarks', label:d.label+' notes'}; })
-);
+
+/* ===================== project types (TEV vs LIE) =====================
+   TEV keeps the full 5-section model (unchanged). LIE only tracks one
+   section — everything else (follow-up date, last communication,
+   documents, remarks history, worklog, etc.) is shared/unchanged for
+   both types. A project's type decides which of these two dimension
+   sets applies to it; existing projects with no projectType saved yet
+   are treated as TEV, so nothing already in the app changes behavior. */
+var PROJECT_TYPES = {
+  TEV: { label:'TEV', dimensions: DIMENSIONS },
+  LIE: { label:'LIE', dimensions: [
+    {key:'lieStatus', label:'Status', short:'Status', options:STATUS_OPTIONS, def:'Not Started'}
+  ]}
+};
+function dimsForProject(p){
+  return (p && p.projectType==='LIE') ? PROJECT_TYPES.LIE.dimensions : PROJECT_TYPES.TEV.dimensions;
+}
+function remarksFieldsFor(p){
+  return [{key:'remarks', label:'General remarks'}].concat(
+    dimsForProject(p).map(function(d){ return {key:d.key+'Remarks', label:d.label+' notes'}; })
+  );
+}
+/* Who owes the next move: Us, Client, or Both. Legacy data only ever had
+   'client' or anything-else-means-us, so ownerLabel/ownerVar/ownerCssVar
+   below are the single source of truth for turning p.actionOwner into
+   display text/colors — update these three, not each call site, if the
+   set of owners ever changes again. */
+var OWNER_OPTIONS = [
+  {key:'us', label:'Us'},
+  {key:'client', label:'Client'},
+  {key:'both', label:'Both'}
+];
+function ownerKey(p){
+  var v = p && p.actionOwner;
+  return (v==='client'||v==='both') ? v : 'us';
+}
+function ownerLabel(p){
+  var k = ownerKey(p);
+  return k==='client' ? 'Client' : (k==='both' ? 'Both' : 'Us');
+}
+function ownerCssVar(p){
+  var k = ownerKey(p);
+  return k==='client' ? '--owner-client' : (k==='both' ? '--owner-both' : '--owner-us');
+}
+function ownerReplyText(p){
+  var k = ownerKey(p);
+  return k==='client' ? 'Client owes reply' : (k==='both' ? 'Both to action' : 'You owe next move');
+}
 var CATEGORIES = ['Company Profile','Technical','Financial','Marketing','Site Visit','Other'];
 var CATEGORY_VAR = {
   'Company Profile':'--cat-companyprofile','Technical':'--cat-technical','Financial':'--cat-financial','Marketing':'--cat-marketing',
@@ -465,7 +510,7 @@ function clamp(n,a,b){return Math.max(a,Math.min(b,n));}
 function debounceRAF(fn){ return function(){ if(renderQueued) return; renderQueued=true; requestAnimationFrame(function(){ renderQueued=false; fn(); }); }; }
 function isUnstartedLike(v){ return v==='Not Started' || v==='Not Completed'; }
 function overallStatus(p){
-  var vals = DIMENSIONS.map(function(d){return p[d.key]||d.def;});
+  var vals = dimsForProject(p).map(function(d){return p[d.key]||d.def;});
   if(vals.every(function(v){return v==='Completed';})) return 'Completed';
   if(vals.every(isUnstartedLike)) return 'Not Started';
   return 'In Progress';
@@ -801,7 +846,7 @@ function fmtTimeHM(d){ return String(d.getHours()).padStart(2,'0')+':'+String(d.
 // overwriting the old text — so past notes stay visible, not lost.
 function logRemarksChanges(existing, data){
   if(!Array.isArray(existing.remarksLog)) existing.remarksLog = [];
-  REMARKS_FIELDS.forEach(function(f){
+  remarksFieldsFor(existing).forEach(function(f){
     var before = (existing[f.key]||'').trim();
     var after = (data[f.key]||'').trim();
     // Only log when there was something there before, and it actually
@@ -873,8 +918,11 @@ function saveSettings(staleDays){
 
 /* ===================== CSV export ===================== */
 function csvEscape(v){ v=String(v==null?'':v); if(/[",\n]/.test(v)) return '"'+v.replace(/"/g,'""')+'"'; return v; }
+function dimensionSummary(p){
+  return dimsForProject(p).map(function(d){ return d.label+': '+(p[d.key]||d.def); }).join('; ');
+}
 async function exportProjectsCSV(){
-  var rows=[['Project','Overall Status',
+  var rows=[['Project','Type','Overall Status','Dimension Summary',
     'Company Profile','Company Profile Owner','Company Profile Notes',
     'Technical','Technical Owner','Technical Notes',
     'Financial','Financial Owner','Financial Notes',
@@ -883,14 +931,14 @@ async function exportProjectsCSV(){
     'Industry','Contact Person','Contact Email','Contact Phone','Location','Website',
     'Last Communication','Days Since Contact','Follow Up On','Next Action','Next Move Owner','Total Hours','Remarks']];
   state.projects.forEach(function(p){
-    rows.push([p.name, overallStatus(p),
+    rows.push([p.name, (p.projectType==='LIE'?'LIE':'TEV'), overallStatus(p), dimensionSummary(p),
       p.companyProfile||'', p.companyProfileOwner||'', p.companyProfileRemarks||'',
       p.technical||'', p.technicalOwner||'', p.technicalRemarks||'',
       p.financial||'', p.financialOwner||'', p.financialRemarks||'',
       p.marketing||'', p.marketingOwner||'', p.marketingRemarks||'',
       p.siteVisit||'', p.siteVisitOwner||'', p.siteVisitRemarks||'',
       p.companyIndustry||'', p.companyContact||'', p.companyEmail||'', p.companyPhone||'', p.companyLocation||'', p.companyWebsite||'',
-      p.lastCommunication||'', daysSince(p.lastCommunication), p.followUpOn||'', p.nextAction||'', p.actionOwner==='client'?'Client':'Us',
+      p.lastCommunication||'', daysSince(p.lastCommunication), p.followUpOn||'', p.nextAction||'', ownerLabel(p),
       minsToHrs(projectMinutes(p.id)), p.remarks||'']);
   });
   var csv = rows.map(function(r){return r.map(csvEscape).join(',');}).join('\r\n');
@@ -1038,7 +1086,7 @@ function followupsCardHTML(list){
     return '<div class="followup row-clickable" data-action="edit-project" data-id="'+p.id+'" data-tip="Click for full details">'+
       '<span class="pill"><span class="dot" style="background:var(--critical)"></span>'+esc(badge)+'</span>'+
       '<div class="fu-main"><div class="fu-name">'+esc(p.name)+'</div>'+
-        '<div class="fu-sub">'+(p.nextAction? esc(p.nextAction) : 'No next action noted')+' · '+(p.actionOwner==='client'?'Client owes reply':'You owe next move')+(dateDue? ' · Follow-up set for '+fmtDate(p.followUpOn) : '')+'</div>'+
+        '<div class="fu-sub">'+(p.nextAction? esc(p.nextAction) : 'No next action noted')+' · '+ownerReplyText(p)+(dateDue? ' · Follow-up set for '+fmtDate(p.followUpOn) : '')+'</div>'+
         (remark? '<div class="fu-sub" style="margin-top:2px; font-style:italic;">'+esc(remark)+'</div>' : '')+
       '</div>'+
       '<button class="btn btn-sm" data-action="touch-comm" data-id="'+p.id+'">Mark contacted</button>'+
@@ -1105,10 +1153,12 @@ function projectsTableHTML(list){
       var label = due ? ('Follow up '+(p.followUpOn===today?'today':'overdue')) : ('Follow up '+fmtDate(p.followUpOn));
       followUpLine = '<div style="font-size:11px; margin-top:3px; '+(due?'color:var(--critical); font-weight:700;':'color:var(--text-muted);')+'">'+label+'</div>';
     }
+    var typeLabel = p.projectType==='LIE' ? 'LIE' : 'TEV';
     return '<tr class="row-clickable" data-action="edit-project" data-id="'+p.id+'">'+
       '<td><b>'+esc(p.name)+'</b></td>'+
+      '<td><span class="pill" data-tip="Project type">'+typeLabel+'</span></td>'+
       '<td><span class="pill"><span class="dot" style="background:'+statusDot(st)+'"></span>'+esc(st)+'</span></td>'+
-      '<td><div class="dim-row">'+DIMENSIONS.map(function(dm){
+      '<td><div class="dim-row">'+dimsForProject(p).map(function(dm){
         var dmOwner = p[dm.key+'Owner'];
         var dmRemarks = p[dm.key+'Remarks'];
         var tip = dm.label+': '+esc(p[dm.key]||dm.def)+(dmOwner?' · Owner: '+esc(dmOwner):'')+(dmRemarks?' · '+esc(dmRemarks):'');
@@ -1116,13 +1166,13 @@ function projectsTableHTML(list){
       }).join('')+'</div></td>'+
       '<td>'+ (d==null ? '<span class="muted">—</span>' : '<span class="'+(stale?'' :'sec')+'" style="'+(stale?'color:var(--critical); font-weight:700;':'')+'">'+d+'d ago</span>') + followUpLine +'</td>'+
       '<td class="trunc" data-tip="'+esc(p.nextAction||'')+'">'+(p.nextAction? esc(p.nextAction): '<span class="muted">—</span>')+'</td>'+
-      '<td><span class="pill"><span class="dot" style="background:'+(p.actionOwner==='client'?'var(--owner-client)':'var(--owner-us)')+'"></span>'+(p.actionOwner==='client'?'Client':'Us')+'</span></td>'+
+      '<td><span class="pill"><span class="dot" style="background:var('+ownerCssVar(p)+')"></span>'+ownerLabel(p)+'</span></td>'+
       '<td class="num">'+fmtHrs(projectMinutes(p.id))+'</td>'+
       '<td><button class="icon-btn" data-action="open-documents" data-id="'+p.id+'" data-tip="Documents">'+iconFile()+'</button></td>'+
     '</tr>';
   }).join('');
   return '<div class="table-wrap"><table><thead><tr>'+
-    '<th>Project</th><th>Status</th><th>Dimensions</th><th>Last contact</th><th>Next action</th><th>Owner</th><th>Hours</th><th></th>'+
+    '<th>Project</th><th>Type</th><th>Status</th><th>Dimensions</th><th>Last contact</th><th>Next action</th><th>Owner</th><th>Hours</th><th></th>'+
     '</tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
@@ -1146,7 +1196,7 @@ function renderNotes(){
     if(!q) return true;
     if((p.name||'').toLowerCase().indexOf(q)>-1) return true;
     if((p.remarks||'').toLowerCase().indexOf(q)>-1) return true;
-    if(DIMENSIONS.some(function(d){ return (p[d.key+'Remarks']||'').toLowerCase().indexOf(q)>-1; })) return true;
+    if(dimsForProject(p).some(function(d){ return (p[d.key+'Remarks']||'').toLowerCase().indexOf(q)>-1; })) return true;
     if(projDocsList(p,'documentsPending').some(function(d){ return d.name.toLowerCase().indexOf(q)>-1; })) return true;
     if(projDocsList(p,'documentsReceived').some(function(d){ return d.name.toLowerCase().indexOf(q)>-1; })) return true;
     if((p.remarksLog||[]).some(function(entry){ return (entry.text||'').toLowerCase().indexOf(q)>-1; })) return true;
@@ -1161,7 +1211,7 @@ function renderNotes(){
 }
 function notesCardHTML(p){
   var st = overallStatus(p);
-  var dimBlocks = DIMENSIONS.map(function(d){
+  var dimBlocks = dimsForProject(p).map(function(d){
     var val = p[d.key]||d.def;
     var owner = p[d.key+'Owner'];
     var remarks = (p[d.key+'Remarks']||'').trim();
@@ -1190,6 +1240,7 @@ function notesCardHTML(p){
   return '<div class="card card-pad note-card">'+
     '<div class="note-card-head">'+
       '<h2>'+esc(p.name)+'</h2>'+
+      '<span class="pill" data-tip="Project type">'+(p.projectType==='LIE'?'LIE':'TEV')+'</span>'+
       '<span class="pill"><span class="dot" style="background:'+statusDot(st)+'"></span>'+esc(st)+'</span>'+
       '<div class="spacer"></div>'+
       '<button class="icon-btn" data-action="open-documents" data-id="'+p.id+'" data-tip="Documents">'+iconFile()+'</button>'+
@@ -1453,13 +1504,21 @@ function openModal(html){
 }
 function openProjectModal(id){
   var p = id ? projectById(id) : null;
-  var v = p || {name:'', companyProfile:'Not Started', technical:'Not Started', financial:'Not Started', marketing:'Not Started', siteVisit:'Not Completed',
+  var v = p || {name:'', projectType:'TEV', companyProfile:'Not Started', technical:'Not Started', financial:'Not Started', marketing:'Not Started', siteVisit:'Not Completed',
     companyProfileOwner:'', technicalOwner:'', financialOwner:'', marketingOwner:'', siteVisitOwner:'',
     companyProfileRemarks:'', technicalRemarks:'', financialRemarks:'', marketingRemarks:'', siteVisitRemarks:'',
     companyIndustry:'', companyContact:'', companyEmail:'', companyPhone:'', companyLocation:'', companyWebsite:'',
     lastCommunication:todayStr(), nextAction:'', actionOwner:'us', remarks:'', followUpOn:''};
   var hrs = p ? projectMinutes(p.id) : 0;
   var logCount = p ? state.worklogs.filter(function(w){return w.projectId===p.id;}).length : 0;
+  var isLie = v.projectType==='LIE';
+
+  function dimFieldsHTML(d){
+    return '<select id="pf-'+d.key+'">'+d.options.map(function(s){return '<option'+((v[d.key]||d.def)===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
+      '<div style="display:flex; gap:6px; margin-top:6px;"><input type="text" id="pf-'+d.key+'Owner" value="'+esc(v[d.key+'Owner']||'')+'" placeholder="Owner name" style="flex:1;">'+
+        '<button type="button" class="btn btn-sm" data-action="fill-me" data-target="pf-'+d.key+'Owner">Me</button></div>'+
+      '<input type="text" id="pf-'+d.key+'Remarks" value="'+esc(v[d.key+'Remarks']||'')+'" placeholder="Notes for '+d.label+'" style="margin-top:6px;">';
+  }
 
   var html =
     '<div class="modal-head"><h3>'+(p?'Edit project':'New project')+'</h3><div class="spacer"></div>'+
@@ -1468,6 +1527,10 @@ function openProjectModal(id){
     '</div>'+
     '<form id="project-form">'+
       '<div class="field"><label>Project name</label><input required type="text" id="pf-name" value="'+esc(v.name)+'" placeholder="e.g. Shri Maa Poly Films"></div>'+
+      '<div class="field"><label>Project type</label><select id="pf-type">'+
+        '<option value="TEV"'+(!isLie?' selected':'')+'>TEV</option>'+
+        '<option value="LIE"'+(isLie?' selected':'')+'>LIE</option>'+
+      '</select><span class="hint" style="display:block; margin-top:4px;">TEV tracks all 5 sections below; LIE tracks just one. Everything else (follow-up, last communication, documents, worklog) works the same for both.</span></div>'+
       '<div class="field"><label>Company profile</label><span class="hint" style="display:block; margin:-2px 0 8px;">Background on the client — optional, but handy to have on hand.</span>'+
         '<div class="field-row">'+
           '<input type="text" id="pf-co-industry" value="'+esc(v.companyIndustry||'')+'" placeholder="Industry / sector">'+
@@ -1482,21 +1545,26 @@ function openProjectModal(id){
           '<input type="text" id="pf-co-website" value="'+esc(v.companyWebsite||'')+'" placeholder="Website">'+
         '</div>'+
       '</div>'+
-      '<div class="field"><label>Status by dimension</label><span class="hint" style="display:block; margin:-2px 0 8px;">Each section can have its own owner and its own notes.</span><div class="field-row" style="grid-template-columns:1fr 1fr; gap:10px;">'+
-        DIMENSIONS.map(function(d){
-          return '<div><label class="hint">'+d.label+'</label><select id="pf-'+d.key+'">'+d.options.map(function(s){return '<option'+((v[d.key]||d.def)===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
-            '<div style="display:flex; gap:6px; margin-top:6px;"><input type="text" id="pf-'+d.key+'Owner" value="'+esc(v[d.key+'Owner']||'')+'" placeholder="Owner name" style="flex:1;">'+
-              '<button type="button" class="btn btn-sm" data-action="fill-me" data-target="pf-'+d.key+'Owner">Me</button></div>'+
-            '<input type="text" id="pf-'+d.key+'Remarks" value="'+esc(v[d.key+'Remarks']||'')+'" placeholder="Notes for '+d.label+'" style="margin-top:6px;">'+
-          '</div>';
+      '<div id="pf-dims-TEV"'+(isLie?' hidden':'')+'>'+
+        '<div class="field"><label>Status by dimension</label><span class="hint" style="display:block; margin:-2px 0 8px;">Each section can have its own owner and its own notes.</span><div class="field-row" style="grid-template-columns:1fr 1fr; gap:10px;">'+
+          PROJECT_TYPES.TEV.dimensions.map(function(d){
+            return '<div><label class="hint">'+d.label+'</label>'+dimFieldsHTML(d)+'</div>';
+          }).join('')+
+        '</div></div>'+
+      '</div>'+
+      '<div id="pf-dims-LIE"'+(isLie?'':' hidden')+'>'+
+        PROJECT_TYPES.LIE.dimensions.map(function(d){
+          return '<div class="field"><label>'+d.label+'</label>'+dimFieldsHTML(d)+'</div>';
         }).join('')+
-      '</div></div>'+
+      '</div>'+
       '<div class="field-row">'+
         '<div class="field"><label>Last communication</label><input type="date" id="pf-lastcomm" value="'+esc(v.lastCommunication||'')+'"></div>'+
         '<div class="field"><label>Follow up on</label><input type="date" id="pf-followupon" value="'+esc(v.followUpOn||'')+'"></div>'+
       '</div>'+
       '<div class="hint" style="display:block; margin:-8px 0 14px;">Follow up on is optional — set a specific date to be reminded, separate from the general '+(state.settings.staleDays||5)+'-day staleness window.</div>'+
-      '<div class="field"><label>Next move is on</label><select id="pf-owner"><option value="us"'+(v.actionOwner!=='client'?' selected':'')+'>Us</option><option value="client"'+(v.actionOwner==='client'?' selected':'')+'>Client</option></select></div>'+
+      '<div class="field"><label>Next move is on</label><select id="pf-owner">'+
+        OWNER_OPTIONS.map(function(o){ return '<option value="'+o.key+'"'+(ownerKey(v)===o.key?' selected':'')+'>'+o.label+'</option>'; }).join('')+
+      '</select></div>'+
       '<div class="field"><label>Next action</label><input type="text" id="pf-nextaction" value="'+esc(v.nextAction||'')+'" placeholder="e.g. Send revised financial model"></div>'+
       '<div class="field"><label>Remarks</label><textarea id="pf-remarks" placeholder="Context, blockers, anything worth remembering">'+esc(v.remarks||'')+'</textarea></div>'+
       (p? '<div class="field"><label class="hint">'+logCount+' worklog '+(logCount===1?'entry':'entries')+' · '+fmtHrs(hrs)+' logged</label></div>' : '')+
@@ -1508,10 +1576,19 @@ function openProjectModal(id){
       '</div>'+
     '</form>';
   openModal(html);
+  var typeSel = document.getElementById('pf-type');
+  function syncType(){
+    var nowLie = typeSel.value==='LIE';
+    document.getElementById('pf-dims-TEV').hidden = nowLie;
+    document.getElementById('pf-dims-LIE').hidden = !nowLie;
+  }
+  typeSel.addEventListener('change', syncType);
   document.getElementById('project-form').addEventListener('submit', function(e){
     e.preventDefault();
+    var chosenType = typeSel.value==='LIE' ? 'LIE' : 'TEV';
     var data = {
       name: document.getElementById('pf-name').value.trim(),
+      projectType: chosenType,
       lastCommunication: document.getElementById('pf-lastcomm').value,
       nextAction: document.getElementById('pf-nextaction').value.trim(),
       followUpOn: document.getElementById('pf-followupon').value,
@@ -1524,7 +1601,7 @@ function openProjectModal(id){
       companyLocation: document.getElementById('pf-co-location').value.trim(),
       companyWebsite: document.getElementById('pf-co-website').value.trim()
     };
-    DIMENSIONS.forEach(function(d){
+    PROJECT_TYPES[chosenType].dimensions.forEach(function(d){
       data[d.key] = document.getElementById('pf-'+d.key).value;
       data[d.key+'Owner'] = document.getElementById('pf-'+d.key+'Owner').value.trim();
       data[d.key+'Remarks'] = document.getElementById('pf-'+d.key+'Remarks').value.trim();

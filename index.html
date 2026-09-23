@@ -494,10 +494,17 @@ function buildWhatsAppText(dateStr){
     var task = (w.particulars||'').trim();
     if(!task) task = w.category || 'Work';
     if(!/[.!?]$/.test(task)) task += '.';
-    groups[company].push(task);
+    var line = '- '+task;
+    var details = (w.details||'').trim();
+    if(details){
+      // Extra detail on what the task involved, indented as its own
+      // line(s) under the task bullet rather than repeating the task.
+      line += '\n'+details.split('\n').map(function(l){ return '  '+l.trim(); }).join('\n');
+    }
+    groups[company].push(line);
   });
   var blocks = order.map(function(company){
-    return company+'\n'+groups[company].map(function(t){ return '- '+t; }).join('\n');
+    return company+'\n'+groups[company].join('\n');
   });
   return header+'\n\n'+blocks.join('\n\n');
 }
@@ -945,9 +952,9 @@ async function exportProjectsCSV(){
   await doDownload('relay-projects.csv', csv);
 }
 async function exportWorklogCSV(){
-  var rows=[['Date','Project','Category','Particulars','Start','End','Hours']];
+  var rows=[['Date','Project','Category','Particulars','Additional Details','Start','End','Hours']];
   state.worklogs.slice().sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}).forEach(function(w){
-    rows.push([w.date||'', w.projectName||'', w.category||'', w.particulars||'', w.startTime||'', w.endTime||'', minsToHrs(w.durationMinutes)]);
+    rows.push([w.date||'', w.projectName||'', w.category||'', w.particulars||'', w.details||'', w.startTime||'', w.endTime||'', minsToHrs(w.durationMinutes)]);
   });
   var csv = rows.map(function(r){return r.map(csvEscape).join(',');}).join('\r\n');
   await doDownload('relay-worklog.csv', csv);
@@ -1406,7 +1413,9 @@ function worklogTableHTML(list){
       '<td class="sec">'+fmtDate(w.date)+'</td>'+
       '<td><b>'+esc(w.projectName||'—')+'</b></td>'+
       '<td><span class="dim-chip"><span class="dot" style="background:var('+ (CATEGORY_VAR[w.category]||'--text-muted') +')"></span>'+esc(w.category||'—')+'</span></td>'+
-      '<td class="trunc" data-tip="'+esc(w.particulars||'')+'">'+esc(w.particulars||'—')+'</td>'+
+      '<td class="trunc" data-tip="'+esc(w.particulars||'')+'">'+esc(w.particulars||'—')+
+        (w.details? '<div class="sec" style="font-size:11px; margin-top:2px; font-style:italic; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">'+esc(w.details)+'</div>' : '')+
+      '</td>'+
       '<td class="sec num">'+(w.startTime&&w.endTime? esc(w.startTime)+'–'+esc(w.endTime) : '—')+'</td>'+
       '<td class="num"><b>'+fmtHrs(w.durationMinutes)+'</b></td>'+
     '</tr>';
@@ -1621,7 +1630,7 @@ function confirmDeleteProject(id){
 }
 function openLogModal(id, presetProjectId){
   var w = id ? state.worklogs.filter(function(x){return x.id===id;})[0] : null;
-  var v = w || {projectId: presetProjectId || (state.projects[0]&&state.projects[0].id) || '', date: todayStr(), category:'Technical', particulars:'', startTime:'', endTime:'', durationMinutes:''};
+  var v = w || {projectId: presetProjectId || (state.projects[0]&&state.projects[0].id) || '', date: todayStr(), category:'Technical', particulars:'', details:'', startTime:'', endTime:'', durationMinutes:''};
   var hasTimes = !!(v.startTime && v.endTime);
   var projOptions = state.projects.map(function(p){return '<option value="'+p.id+'"'+(v.projectId===p.id?' selected':'')+'>'+esc(p.name)+'</option>';}).join('');
 
@@ -1634,6 +1643,7 @@ function openLogModal(id, presetProjectId){
       '</div>'+
       '<div class="field"><label>Category</label><select id="lf-category">'+CATEGORIES.map(function(c){return '<option'+(v.category===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select></div>'+
       '<div class="field"><label>Particulars</label><input type="text" id="lf-particulars" value="'+esc(v.particulars||'')+'" placeholder="What did you work on?"></div>'+
+      '<div class="field"><label>Additional details <span class="muted" style="font-weight:400;">(optional)</span></label><textarea id="lf-details" rows="3" placeholder="e.g. Built revenue and cost projections for FY27, pending sensitivity analysis">'+esc(v.details||'')+'</textarea></div>'+
       '<div class="field"><label>How to record time</label><div class="radio-row">'+
         '<label><input type="radio" name="timemode" value="times" '+(hasTimes||!w?'checked':'')+'> Start &amp; end time</label>'+
         '<label><input type="radio" name="timemode" value="hours" '+(!hasTimes&&w?'checked':'')+'> Total hours</label>'+
@@ -1681,6 +1691,7 @@ function openLogModal(id, presetProjectId){
       date: document.getElementById('lf-date').value,
       category: document.getElementById('lf-category').value,
       particulars: document.getElementById('lf-particulars').value.trim(),
+      details: document.getElementById('lf-details').value.trim(),
       startTime: startTime, endTime: endTime,
       durationMinutes: durationMinutes
     };
